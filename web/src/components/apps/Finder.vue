@@ -39,8 +39,8 @@ function select (e) { state.sel = e }
 function dblclick (e) {
   const full = join(state.path, e.name)
   if (e.type === 'dir') load(full)
-  else if (isImage(e.name)) windows.open('preview', { title: e.name, payload: { path: full } })
-  else windows.open('textedit', { payload: { path: full } })
+  else if (isImage(e.name)) windows.open('preview', { path: full, title: e.name })
+  else windows.open('textedit', { path: full })
 }
 
 function goUp () { if (state.parent) load(state.parent) }

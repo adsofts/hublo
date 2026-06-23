@@ -51,6 +51,17 @@ body{
 .menu-item{opacity:.92;cursor:default}
 .menu-right .menu-item{cursor:pointer}
 .menu-clock{font-variant-numeric:tabular-nums;min-width:120px;text-align:right}
+.apple{cursor:pointer}
+.menu-trigger{cursor:pointer;opacity:.92;padding:1px 6px;border-radius:4px}
+.menu-trigger:hover,.menu-trigger.active{background:rgba(255,255,255,.2);opacity:1}
+.menu-dd{position:fixed;top:25px;min-width:210px;padding:5px;z-index:9500;color:#1d1d1f;
+  background:rgba(246,246,248,.9);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid rgba(0,0,0,.12);border-radius:8px;box-shadow:0 14px 44px rgba(0,0,0,.32)}
+.dd-item{font-size:13px;padding:6px 12px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.dd-item:hover{background:var(--accent);color:#fff}
+.dd-item.disabled{opacity:.45;cursor:default;font-size:12px}
+.dd-item.disabled:hover{background:transparent;color:inherit}
+.dd-sep{height:1px;background:rgba(0,0,0,.12);margin:5px 8px}
 
 /* ---------- DOCK ---------- */
 .dock{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:9000;
