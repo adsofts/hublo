@@ -7,6 +7,7 @@ import Fastify from 'fastify'
 import fastifyCookie from '@fastify/cookie'
 import fastifyStatic from '@fastify/static'
 import fastifyWebsocket from '@fastify/websocket'
+import fastifyMultipart from '@fastify/multipart'
 import { Client as SSHClient } from 'ssh2'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -31,6 +32,7 @@ const loginGuard = new Map()
 const app = Fastify({ bodyLimit: 5 * 1024 * 1024 })
 await app.register(fastifyCookie)
 await app.register(fastifyWebsocket)
+await app.register(fastifyMultipart, { limits: { fileSize: 100 * 1024 * 1024 } })
 await app.register(fastifyStatic, { root: join(__dirname, 'public'), prefix: '/' })
 
 function newToken () { return randomBytes(24).toString('hex') }
@@ -205,6 +207,36 @@ app.post('/api/fs/delete', async (req, reply) => {
     else await pf(s.sftp.unlink.bind(s.sftp), path)
     return { ok: true }
   } catch (e) { return reply.code(400).send({ error: 'Suppression impossible : ' + e.message + ' (dossier non vide ?)' }) }
+})
+
+// upload (multipart) : dépose le(s) fichier(s) dans le dossier `path`
+app.post('/api/fs/upload', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const dir = safePath(req.query.path)
+  if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const data = await req.file()
+  if (!data) return reply.code(400).send({ error: 'aucun fichier' })
+  const dest = posix.join(dir, posix.basename(data.filename))
+  try {
+    await new Promise((res, rej) => {
+      const ws = s.sftp.createWriteStream(dest)
+      ws.on('close', res); ws.on('error', rej)
+      data.file.on('limit', () => rej(new Error('fichier trop gros (> 100 Mo)')))
+      data.file.pipe(ws)
+    })
+    return { ok: true, name: posix.basename(data.filename) }
+  } catch (e) { return reply.code(400).send({ error: 'Import impossible : ' + e.message }) }
+})
+
+// download : renvoie le fichier en flux (attachment)
+app.get('/api/fs/download', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const path = safePath(req.query.path)
+  if (!path) return reply.code(400).send({ error: 'chemin invalide' })
+  const name = posix.basename(path).replace(/["\\]/g, '')
+  reply.header('Content-Disposition', `attachment; filename="${name}"`)
+  reply.header('Content-Type', 'application/octet-stream')
+  return reply.send(s.sftp.createReadStream(path))
 })
 
 // ---------- PROCESS (exec d'une commande EN DUR) ----------
