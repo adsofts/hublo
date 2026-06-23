@@ -118,10 +118,13 @@ function openFinder (startPath){
       <button class="fbtn" data-a="up" title="Dossier parent">↑</button>
       <button class="fbtn" data-a="reload" title="Rafraîchir">⟳</button>
       <span class="fpath"></span>
+      <button class="fbtn" data-a="import" title="Importer des fichiers">⬆ Importer</button>
+      <button class="fbtn" data-a="dl" disabled>⬇ Télécharger</button>
       <button class="fbtn" data-a="mkdir">Nouveau dossier</button>
       <button class="fbtn" data-a="rename" disabled>Renommer</button>
       <button class="fbtn" data-a="del" disabled>Supprimer</button>
-    </div><div class="grid"></div>`
+    </div><div class="grid"></div>
+    <input type="file" multiple class="upl" style="display:none">`
   const grid=body.querySelector('.grid'), pathEl=body.querySelector('.fpath')
   const state={ path:startPath||ME.home, parent:null, sel:null, hist:[] }
   openWins.finder={ el, title:'Finder' }
@@ -140,10 +143,23 @@ function openFinder (startPath){
         c.innerHTML=`<div class="ic">${icoFor(e)}</div><div class="nm"></div>`
         c.querySelector('.nm').textContent=e.name
         c.addEventListener('click',()=>{ grid.querySelectorAll('.cell').forEach(x=>x.classList.remove('sel')); c.classList.add('sel'); state.sel=e
-          body.querySelector('[data-a=rename]').disabled=false; body.querySelector('[data-a=del]').disabled=false })
+          body.querySelector('[data-a=rename]').disabled=false; body.querySelector('[data-a=del]').disabled=false
+          body.querySelector('[data-a=dl]').disabled=(e.type==='dir') })
         c.addEventListener('dblclick',()=>{ const full=join(state.path,e.name)
           if(e.type==='dir') load(full)
           else openTextEdit(full) })
+        // drag & drop : la cellule est déplaçable ; un dossier accepte qu'on dépose dessus
+        c.draggable=true
+        c.addEventListener('dragstart',ev=>{ ev.dataTransfer.setData('application/x-hublo',e.name); ev.dataTransfer.effectAllowed='move' })
+        if(e.type==='dir'){
+          c.addEventListener('dragover',ev=>{ if(ev.dataTransfer.types.includes('application/x-hublo')||ev.dataTransfer.types.includes('Files')){ ev.preventDefault(); c.classList.add('drop') } })
+          c.addEventListener('dragleave',()=>c.classList.remove('drop'))
+          c.addEventListener('drop',async ev=>{ ev.preventDefault(); ev.stopPropagation(); c.classList.remove('drop')
+            const folder=join(state.path,e.name)
+            if(ev.dataTransfer.files.length){ await uploadFiles(ev.dataTransfer.files,folder); load(state.path,false); return }
+            const src=ev.dataTransfer.getData('application/x-hublo'); if(!src||src===e.name)return
+            try{ await api.post('/api/fs/rename',{from:join(state.path,src),to:join(folder,src)}); load(state.path,false); toast('Déplacé → '+e.name) }catch(ex){ toast(ex.message) } })
+        }
         grid.appendChild(c)
       })
       body.querySelector('[data-a=up]').disabled = !d.parent
@@ -159,9 +175,26 @@ function openFinder (startPath){
     try{ await api.post('/api/fs/rename',{from:join(state.path,state.sel.name),to:join(state.path,n)}); load(state.path,false); toast('Renommé') }catch(ex){ toast(ex.message) } })
   body.querySelector('[data-a=del]').addEventListener('click',async()=>{ if(!state.sel)return; if(!confirm('Supprimer « '+state.sel.name+' » ?'))return
     try{ await api.post('/api/fs/delete',{path:join(state.path,state.sel.name)}); load(state.path,false); toast('Supprimé') }catch(ex){ toast(ex.message) } })
+  // Importer (bouton + input caché)
+  const upl=body.querySelector('.upl')
+  body.querySelector('[data-a=import]').addEventListener('click',()=>upl.click())
+  upl.addEventListener('change',async()=>{ if(!upl.files.length)return; await uploadFiles(upl.files,state.path); upl.value=''; load(state.path,false) })
+  // Télécharger le fichier sélectionné
+  body.querySelector('[data-a=dl]').addEventListener('click',()=>{ if(!state.sel||state.sel.type==='dir')return
+    const a=document.createElement('a'); a.href='/api/fs/download?path='+encodeURIComponent(join(state.path,state.sel.name)); a.download=state.sel.name; document.body.appendChild(a); a.click(); a.remove() })
+  // Déposer des fichiers depuis l'OS sur la zone Finder → import dans le dossier courant
+  grid.addEventListener('dragover',ev=>{ if(ev.dataTransfer.types.includes('Files')){ ev.preventDefault(); grid.classList.add('drop') } })
+  grid.addEventListener('dragleave',ev=>{ if(ev.target===grid) grid.classList.remove('drop') })
+  grid.addEventListener('drop',async ev=>{ grid.classList.remove('drop'); if(!ev.dataTransfer.files.length)return; ev.preventDefault(); await uploadFiles(ev.dataTransfer.files,state.path); load(state.path,false) })
   load(state.path,false)
 }
 function join (dir,name){ return (dir==='/'?'':dir)+'/'+name }
+async function uploadFiles (files,destDir){
+  for(const f of files){ const fd=new FormData(); fd.append('file',f)
+    try{ const r=await fetch('/api/fs/upload?path='+encodeURIComponent(destDir),{method:'POST',credentials:'same-origin',body:fd})
+      const d=await r.json().catch(()=>({})); if(!r.ok)throw new Error(d.error||'import'); toast('Importé : '+d.name) }
+    catch(ex){ toast(ex.message) } }
+}
 
 /* ---------------- TEXTEDIT ---------------- */
 async function openTextEdit (path){

@@ -88,6 +88,8 @@ body{
 .cell{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border-radius:10px;cursor:pointer;text-align:center}
 .cell:hover{background:#eef3ff}
 .cell.sel{background:#dbe7ff}
+.cell.drop{background:#cfe0ff;outline:2px dashed var(--accent);outline-offset:-3px}
+.grid.drop{outline:2px dashed #9bbcff;outline-offset:-6px;background:#f3f7ff}
 .cell .ic{font-size:42px;line-height:1}
 .cell .nm{font-size:12px;color:#222;word-break:break-word;max-width:92px;line-height:1.2;max-height:2.4em;overflow:hidden}
 .finder-empty{padding:40px;text-align:center;color:#999;font-size:14px}
