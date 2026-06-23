@@ -10,6 +10,7 @@ import fastifyWebsocket from '@fastify/websocket'
 import fastifyMultipart from '@fastify/multipart'
 import { Client as SSHClient } from 'ssh2'
 import { randomBytes } from 'node:crypto'
+import { appendFile, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, posix } from 'node:path'
 
@@ -28,6 +29,14 @@ const ALLOWED = (process.env.HUBLO_ALLOWED || 'erwan,siwei').split(',').map(s =>
 const sessions = new Map()
 // ---- rate-limit login basique : ip -> { fails, until } ----
 const loginGuard = new Map()
+
+// ---- journal d'audit (qui, quoi, quand) ----
+mkdirSync(join(__dirname, 'logs'), { recursive: true })
+const AUDIT = join(__dirname, 'logs', 'audit.log')
+function audit (req, user, action, detail) {
+  const ip = req.headers['cf-connecting-ip'] || req.ip
+  appendFile(AUDIT, `${new Date().toISOString()}\t${ip}\t${user || '-'}\t${action}\t${detail || ''}\n`, () => {})
+}
 
 const app = Fastify({ bodyLimit: 5 * 1024 * 1024 })
 await app.register(fastifyCookie)
@@ -93,6 +102,7 @@ app.post('/api/login', async (req, reply) => {
     return reply.code(400).send({ error: 'Identifiants invalides.' })
   }
   if (!ALLOWED.includes(username)) {
+    audit(req, username, 'login', 'REFUSÉ (allowlist)')
     return reply.code(403).send({ error: 'Compte non autorisé sur Hublo.' })
   }
   try {
@@ -102,6 +112,7 @@ app.post('/api/login', async (req, reply) => {
     sessions.set(token, { username, conn, sftp, home, lastActive: Date.now(), ip })
     conn.on('close', () => sessions.delete(token))
     loginGuard.delete(ip)
+    audit(req, username, 'login', 'ok')
     const secure = req.headers['x-forwarded-proto'] === 'https'
     reply.setCookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 60 * 60 * 8 })
     return { ok: true, username, home }
@@ -110,6 +121,7 @@ app.post('/api/login', async (req, reply) => {
     cur.fails++
     if (cur.fails >= 8) cur.until = Date.now() + 10 * 60 * 1000
     loginGuard.set(ip, cur)
+    audit(req, username, 'login', 'ÉCHEC')
     return reply.code(401).send({ error: 'Connexion refusée (utilisateur / mot de passe).' })
   }
 })
@@ -177,6 +189,7 @@ app.post('/api/fs/write', async (req, reply) => {
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   try {
     await pf(s.sftp.writeFile.bind(s.sftp), path, req.body.content ?? '')
+    audit(req, s.username, 'write', path)
     return { ok: true }
   } catch (e) { return reply.code(400).send({ error: 'Écriture impossible : ' + e.message }) }
 })
@@ -185,7 +198,7 @@ app.post('/api/fs/mkdir', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const path = safePath(req.body?.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
-  try { await pf(s.sftp.mkdir.bind(s.sftp), path); return { ok: true } }
+  try { await pf(s.sftp.mkdir.bind(s.sftp), path); audit(req, s.username, 'mkdir', path); return { ok: true } }
   catch (e) { return reply.code(400).send({ error: 'Création impossible : ' + e.message }) }
 })
 
@@ -193,7 +206,7 @@ app.post('/api/fs/rename', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const from = safePath(req.body?.from), to = safePath(req.body?.to)
   if (!from || !to) return reply.code(400).send({ error: 'chemin invalide' })
-  try { await pf(s.sftp.rename.bind(s.sftp), from, to); return { ok: true } }
+  try { await pf(s.sftp.rename.bind(s.sftp), from, to); audit(req, s.username, 'rename', from + ' → ' + to); return { ok: true } }
   catch (e) { return reply.code(400).send({ error: 'Renommage impossible : ' + e.message }) }
 })
 
@@ -205,6 +218,7 @@ app.post('/api/fs/delete', async (req, reply) => {
     const st = await pf(s.sftp.stat.bind(s.sftp), path)
     if (st.isDirectory()) await pf(s.sftp.rmdir.bind(s.sftp), path)
     else await pf(s.sftp.unlink.bind(s.sftp), path)
+    audit(req, s.username, 'delete', path)
     return { ok: true }
   } catch (e) { return reply.code(400).send({ error: 'Suppression impossible : ' + e.message + ' (dossier non vide ?)' }) }
 })
@@ -224,6 +238,7 @@ app.post('/api/fs/upload', async (req, reply) => {
       data.file.on('limit', () => rej(new Error('fichier trop gros (> 100 Mo)')))
       data.file.pipe(ws)
     })
+    audit(req, s.username, 'upload', dest)
     return { ok: true, name: posix.basename(data.filename) }
   } catch (e) { return reply.code(400).send({ error: 'Import impossible : ' + e.message }) }
 })

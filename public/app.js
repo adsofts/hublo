@@ -147,6 +147,7 @@ function openFinder (startPath){
           body.querySelector('[data-a=dl]').disabled=(e.type==='dir') })
         c.addEventListener('dblclick',()=>{ const full=join(state.path,e.name)
           if(e.type==='dir') load(full)
+          else if(isImage(e.name)) openPreview(full)
           else openTextEdit(full) })
         // drag & drop : la cellule est déplaçable ; un dossier accepte qu'on dépose dessus
         c.draggable=true
@@ -220,6 +221,18 @@ async function openTextEdit (path){
 }
 function baseName(p){ return p.split('/').pop() }
 function fmtSize(n){ if(n<1024)return n+' o'; if(n<1048576)return (n/1024).toFixed(1)+' Ko'; return (n/1048576).toFixed(1)+' Mo' }
+
+/* ---------------- APERÇU (image) ---------------- */
+function isImage(n){ return ['png','jpg','jpeg','gif','webp','svg','bmp','ico','avif'].includes((n.split('.').pop()||'').toLowerCase()) }
+function openPreview(path){
+  let el=openWins.preview?.el
+  if(!el){ el=createWindow('preview',{title:'Aperçu',w:560,h:440}); openWins.preview={el,title:'Aperçu'} }
+  el.classList.remove('min'); focusWin(el); $('#menu-active').textContent='Aperçu'
+  el.querySelector('.title').textContent=baseName(path)
+  const body=el.querySelector('.win-body')
+  body.style.cssText='display:flex;align-items:center;justify-content:center;background:#1b1b1d;overflow:auto'
+  body.innerHTML=`<img src="/api/fs/download?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="">`
+}
 
 /* ---------------- TERMINAL ---------------- */
 function openTerminal (){
