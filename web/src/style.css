@@ -209,6 +209,13 @@ body{
 .fbtn.primary{background:var(--accent);color:#fff}
 .fbtn.primary:hover{filter:brightness(1.08)}
 
+/* icônes du bureau (lecteurs réseau) */
+.desk-icons{position:fixed;top:34px;right:14px;display:flex;flex-direction:column;gap:4px;z-index:10}
+.desk-icon{width:88px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;cursor:pointer;text-align:center}
+.desk-icon:hover{background:rgba(255,255,255,.2)}
+.desk-ico{font-size:38px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+.desk-label{font-size:12px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);max-width:84px;word-break:break-word;line-height:1.2}
+
 /* petit toast */
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.8);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
