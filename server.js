@@ -362,6 +362,40 @@ app.post('/api/fs/extract', async (req, reply) => {
   return { ok: true }
 })
 
+// copie (gère la collision : suffixe -copie-<ts>)
+app.post('/api/fs/copy', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const from = safePath(req.body?.from), to = safePath(req.body?.to)
+  if (!from || !to) return reply.code(400).send({ error: 'chemin invalide' })
+  const r = await sshRun(s.conn, `t=${shq(to)}; [ -e "$t" ] && t="$t-copie-$(date +%s)"; cp -r -- ${shq(from)} "$t" && printf '%s' "$t"`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Copie impossible : ' + (r.err || '').trim() })
+  audit(req, s.username, 'copy', from + ' → ' + r.out)
+  return { ok: true, path: r.out }
+})
+
+// infos détaillées (stat) d'un élément
+app.get('/api/fs/info', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const path = safePath(req.query.path)
+  if (!path) return reply.code(400).send({ error: 'chemin invalide' })
+  const r = await sshRun(s.conn, `stat -c '%s|%Y|%a|%A|%U|%G|%F' -- ${shq(path)}`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Infos indisponibles' })
+  const [size, mtime, octal, perms, owner, group, ftype] = r.out.trim().split('|')
+  return { name: posix.basename(path), path, size: Number(size), mtime: Number(mtime) * 1000, octal, perms, owner, group, ftype }
+})
+
+// chmod
+app.post('/api/fs/chmod', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const path = safePath(req.body?.path)
+  const mode = String(req.body?.mode || '')
+  if (!path || !/^[0-7]{3,4}$/.test(mode)) return reply.code(400).send({ error: 'paramètres invalides' })
+  const r = await sshRun(s.conn, `chmod ${shq(mode)} -- ${shq(path)}`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Modification des droits impossible : ' + (r.err || '').trim() })
+  audit(req, s.username, 'chmod', mode + ' ' + path)
+  return { ok: true }
+})
+
 // ---------- PROCESS (exec d'une commande EN DUR) ----------
 app.get('/api/ps', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return

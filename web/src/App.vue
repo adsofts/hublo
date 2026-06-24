@@ -12,6 +12,7 @@ import Terminal from './components/apps/Terminal.vue'
 import Monitor from './components/apps/Monitor.vue'
 import SysInfo from './components/apps/SysInfo.vue'
 import Trash from './components/apps/Trash.vue'
+import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
 
@@ -41,6 +42,7 @@ function has (app) { return windows.running.has(app) }
       <Monitor v-if="has('monitor')" />
       <SysInfo v-if="has('sysinfo')" />
       <Trash v-if="has('trash')" />
+      <Props v-if="has('props')" />
       <Preview v-if="has('preview')" />
       <About v-if="has('about')" />
     </div>

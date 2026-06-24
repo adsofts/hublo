@@ -22,6 +22,8 @@ const state = reactive({
 })
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
+const clipboard = ref(null)  // { path, name, mode: 'copy' | 'cut' }
+const ctx = reactive({ show: false, x: 0, y: 0, e: null })
 
 async function load (p, push = true) {
   try {
@@ -123,6 +125,35 @@ async function extract () {
   catch (ex) { toast.show(ex.message) }
 }
 
+// ---- menu contextuel (clic droit) ----
+function openCtx (ev, e) {
+  ev.preventDefault(); ev.stopPropagation()
+  if (e) state.sel = e
+  ctx.e = e
+  ctx.x = Math.min(ev.clientX, window.innerWidth - 215)
+  ctx.y = Math.min(ev.clientY, window.innerHeight - 340)
+  ctx.show = true
+  document.addEventListener('click', closeCtx)
+  document.addEventListener('contextmenu', closeCtx)
+}
+function closeCtx () {
+  ctx.show = false
+  document.removeEventListener('click', closeCtx)
+  document.removeEventListener('contextmenu', closeCtx)
+}
+function copyItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'copy' }; toast.show('Copié') }
+function cutItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'cut' }; toast.show('Coupé') }
+async function paste () {
+  if (!clipboard.value) return
+  const dest = join(state.path, clipboard.value.name)
+  try {
+    if (clipboard.value.mode === 'copy') await api.copy(clipboard.value.path, dest)
+    else { await api.rename(clipboard.value.path, dest); clipboard.value = null }
+    refresh(); toast.show('Collé')
+  } catch (ex) { toast.show(ex.message) }
+}
+function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name }) }
+
 async function uploadFiles (files, destDir) {
   for (const f of files) {
     try { const d = await api.upload(f, destDir); toast.show('Importé : ' + d.name) }
@@ -205,6 +236,7 @@ load(state.path, false)
       @dragover="onGridDragOver"
       @dragleave="onGridDragLeave"
       @drop="onGridDrop"
+      @contextmenu="openCtx($event, null)"
     >
       <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? 'Aucun résultat' : 'Dossier vide' }}</div>
       <div
@@ -216,6 +248,7 @@ load(state.path, false)
         draggable="true"
         @click="select(e)"
         @dblclick="dblclick(e)"
+        @contextmenu="openCtx($event, e)"
         @dragstart="onDragStart($event, e)"
         @dragover="onCellDragOver($event, e)"
         @dragleave="onCellDragLeave(e)"
@@ -226,5 +259,29 @@ load(state.path, false)
       </div>
     </div>
     <input ref="uplInput" type="file" multiple style="display:none" @change="onUpload">
+
+    <div v-if="ctx.show" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
+      <template v-if="ctx.e">
+        <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
+        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
+        <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
+        <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
+        <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
+        <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" @click="properties(ctx.e); closeCtx()">Propriétés…</div>
+      </template>
+      <template v-else>
+        <div class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
+        <div class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
+        <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+      </template>
+    </div>
   </WindowFrame>
 </template>

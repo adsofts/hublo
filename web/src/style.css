@@ -148,6 +148,35 @@ body{
 .trash-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trash-orig{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* menu contextuel (clic droit) */
+.ctx{position:fixed;min-width:200px;padding:5px;z-index:9600;color:#1d1d1f;
+  background:rgba(246,246,248,.97);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid rgba(0,0,0,.12);border-radius:8px;box-shadow:0 14px 44px rgba(0,0,0,.32)}
+.ctx-item{font-size:13px;padding:6px 12px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.ctx-item:hover{background:var(--accent);color:#fff}
+.ctx-item.danger{color:#d70015}
+.ctx-item.danger:hover{background:#d70015;color:#fff}
+.ctx-sep{height:1px;background:rgba(0,0,0,.1);margin:5px 8px}
+
+/* Propriétés */
+.props{padding:18px 20px}
+.props-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.props-ic{font-size:40px;line-height:1}
+.props-name{font-size:15px;font-weight:600;word-break:break-all}
+.props-type{font-size:12px;color:var(--muted)}
+.props-rows{border-top:1px solid #ececec;margin-bottom:14px}
+.props-row{display:flex;justify-content:space-between;gap:12px;padding:6px 2px;border-bottom:1px solid #ececec;font-size:12.5px}
+.props-row span{color:var(--muted)}
+.props-row b{text-align:right;word-break:break-all}
+.pp-title{font-size:12px;color:var(--muted);margin-bottom:6px}
+.props-perms table{width:100%;border-collapse:collapse;font-size:12.5px}
+.props-perms th{font-weight:600;color:#666;font-size:11px;padding:4px}
+.props-perms td{padding:5px 4px;text-align:center}
+.props-perms td:first-child{text-align:left;color:#333}
+.props-perms input{width:16px;height:16px;cursor:pointer}
+.pp-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.pp-oct{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
+
 /* petit toast */
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.8);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
