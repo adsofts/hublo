@@ -17,14 +17,16 @@ import { dirname, join, posix } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8787
-const HOST = '127.0.0.1'
+const HOST = process.env.HOST || '127.0.0.1'
 const SSH_HOST = '127.0.0.1'
 const SSH_PORT = 22
 const COOKIE = 'hublo_sess'
 const IDLE_MS = 30 * 60 * 1000          // 30 min d'inactivité → on ferme la session SSH
 const MAX_READ = 2 * 1024 * 1024        // 2 Mo max pour ouvrir un fichier dans l'éditeur
 // Allowlist : seuls ces comptes Unix peuvent se connecter (refus avant toute tentative SSH).
-const ALLOWED = (process.env.HUBLO_ALLOWED || 'erwan,siwei').split(',').map(s => s.trim()).filter(Boolean)
+// Comptes Unix autorisés à se connecter. Défaut = l'utilisateur qui lance le gateway.
+// En production, fixer HUBLO_ALLOWED (ex. via le service systemd).
+const ALLOWED = (process.env.HUBLO_ALLOWED || process.env.USER || '').split(',').map(s => s.trim()).filter(Boolean)
 
 // ---- sessions en mémoire : token -> { username, conn, sftp, lastActive, ip } ----
 const sessions = new Map()
