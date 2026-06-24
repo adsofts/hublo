@@ -176,8 +176,20 @@ async function uploadFiles (files, destDir) {
 
 // ---- drag & drop ----
 function onDragStart (ev, e) {
-  ev.dataTransfer.setData('application/x-hublo', e.name)
+  // on transporte le chemin complet + l'hôte → déplaçable vers un autre Finder
+  ev.dataTransfer.setData('application/x-hublo', JSON.stringify({ path: entryPath(e), name: e.name, host: state.host || null }))
   ev.dataTransfer.effectAllowed = 'move'
+}
+// déplace une source (drag interne, éventuellement d'une autre fenêtre) dans un dossier cible
+async function moveInto (raw, destDir, okMsg) {
+  let src
+  try { src = JSON.parse(raw) } catch { return }
+  if (!src || !src.path) return
+  if ((src.host || null) !== (state.host || null)) { toast.show('Déplacement entre hôtes différents : pas encore supporté'); return }
+  const dest = join(destDir, src.name)
+  if (dest === src.path) return
+  try { await api.rename(src.path, dest, state.host); refresh(); toast.show(okMsg) }
+  catch (ex) { toast.show(ex.message) }
 }
 function onCellDragOver (ev, e) {
   if (e.type !== 'dir') return
@@ -195,32 +207,22 @@ async function onCellDrop (ev, e) {
   ev.stopPropagation()
   dropTarget.value = null
   const folder = join(state.path, e.name)
-  if (ev.dataTransfer.files.length) {
-    await uploadFiles(ev.dataTransfer.files, folder)
-    load(state.path, false)
-    return
-  }
-  const src = ev.dataTransfer.getData('application/x-hublo')
-  if (!src || src === e.name) return
-  try {
-    await api.rename(join(state.path, src), join(folder, src), state.host)
-    refresh()
-    toast.show('Déplacé → ' + e.name)
-  } catch (ex) { toast.show(ex.message) }
+  if (ev.dataTransfer.files.length) { await uploadFiles(ev.dataTransfer.files, folder); refresh(); return }
+  const raw = ev.dataTransfer.getData('application/x-hublo')
+  if (raw) await moveInto(raw, folder, 'Déplacé → ' + e.name)
 }
 
 function onGridDragOver (ev) {
-  if (ev.dataTransfer.types.includes('Files')) { ev.preventDefault(); state.gridDrop = true }
+  if (ev.dataTransfer.types.includes('Files') || ev.dataTransfer.types.includes('application/x-hublo')) { ev.preventDefault(); state.gridDrop = true }
 }
 function onGridDragLeave (ev) {
   if (ev.target.classList.contains('grid')) state.gridDrop = false
 }
 async function onGridDrop (ev) {
   state.gridDrop = false
-  if (!ev.dataTransfer.files.length) return
-  ev.preventDefault()
-  await uploadFiles(ev.dataTransfer.files, state.path)
-  load(state.path, false)
+  if (ev.dataTransfer.files.length) { ev.preventDefault(); await uploadFiles(ev.dataTransfer.files, state.path); refresh(); return }
+  const raw = ev.dataTransfer.getData('application/x-hublo')
+  if (raw) { ev.preventDefault(); await moveInto(raw, state.path, 'Déplacé') }
 }
 
 // chargement initial — honore un éventuel hôte demandé depuis le bureau
