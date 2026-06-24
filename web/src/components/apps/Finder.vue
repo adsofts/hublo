@@ -157,9 +157,15 @@ function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode:
 async function paste () {
   const c = windows.clip
   if (!c) return
-  if ((c.host || null) !== (state.host || null)) { toast.show('Copier/coller entre hôtes différents : pas encore supporté'); return }
-  const dest = join(state.path, c.name)
   try {
+    if ((c.host || null) !== (state.host || null)) {
+      // transfert inter-hôtes (vrai stream serveur→serveur)
+      await api.transfer(c.host || null, c.path, state.host || null, state.path, c.mode === 'cut' ? 'move' : 'copy')
+      if (c.mode === 'cut') windows.setClip(null)
+      refresh(); toast.show('Transféré')
+      return
+    }
+    const dest = join(state.path, c.name)
     if (c.mode === 'copy') await api.copy(c.path, dest, state.host)
     else { await api.rename(c.path, dest, state.host); windows.setClip(null) }
     refresh(); toast.show('Collé')
@@ -185,11 +191,15 @@ async function moveInto (raw, destDir, okMsg) {
   let src
   try { src = JSON.parse(raw) } catch { return }
   if (!src || !src.path) return
-  if ((src.host || null) !== (state.host || null)) { toast.show('Déplacement entre hôtes différents : pas encore supporté'); return }
-  const dest = join(destDir, src.name)
-  if (dest === src.path) return
-  try { await api.rename(src.path, dest, state.host); refresh(); toast.show(okMsg) }
-  catch (ex) { toast.show(ex.message) }
+  try {
+    if ((src.host || null) !== (state.host || null)) {
+      await api.transfer(src.host || null, src.path, state.host || null, destDir, 'move')
+      refresh(); toast.show('Transféré'); return
+    }
+    const dest = join(destDir, src.name)
+    if (dest === src.path) return
+    await api.rename(src.path, dest, state.host); refresh(); toast.show(okMsg)
+  } catch (ex) { toast.show(ex.message) }
 }
 function onCellDragOver (ev, e) {
   if (e.type !== 'dir') return
