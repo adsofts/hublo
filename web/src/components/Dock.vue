@@ -10,6 +10,7 @@ const items = [
   { app: 'monitor', ico: '📊', title: 'Moniteur d’activité' },
   { app: 'logs', ico: '📜', title: 'Logs' },
   { app: 'storage', ico: '💾', title: 'Stockage' },
+  { app: 'db', ico: '🗄️', title: 'Base de données' },
   { app: 'network', ico: '🌐', title: 'Lecteurs réseau' }
 ]
 
