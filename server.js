@@ -105,6 +105,21 @@ function sshExec (conn, cmd) {
     })
   })
 }
+// exec avec code de sortie + stderr (pour les opérations qui peuvent échouer)
+function sshRun (conn, cmd) {
+  return new Promise((res) => {
+    conn.exec(cmd, (err, stream) => {
+      if (err) return res({ code: 1, out: '', err: err.message })
+      let out = '', errout = '', code = 0
+      stream.on('data', d => { out += d })
+      stream.stderr && stream.stderr.on('data', d => { errout += d })
+      stream.on('exit', c => { code = c })
+      stream.on('close', () => res({ code, out, err: errout }))
+    })
+  })
+}
+const MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif', txt: 'text/plain; charset=utf-8' }
+const mimeFor = (n) => MIME[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream'
 
 // ---------- AUTH ----------
 app.post('/api/login', async (req, reply) => {
@@ -229,13 +244,14 @@ app.post('/api/fs/delete', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const path = safePath(req.body?.path)
   if (!path || path === '/' || path === s.home) return reply.code(400).send({ error: 'chemin invalide' })
-  try {
-    const st = await pf(s.sftp.stat.bind(s.sftp), path)
-    if (st.isDirectory()) await pf(s.sftp.rmdir.bind(s.sftp), path)
-    else await pf(s.sftp.unlink.bind(s.sftp), path)
-    audit(req, s.username, 'delete', path)
-    return { ok: true }
-  } catch (e) { return reply.code(400).send({ error: 'Suppression impossible : ' + e.message + ' (dossier non vide ?)' }) }
+  if (path.startsWith(posix.join(s.home, '.hublo-trash'))) return reply.code(400).send({ error: 'déjà dans la corbeille' })
+  // mise à la corbeille (déplacement vers ~/.hublo-trash/<id>/ + mémo du chemin d'origine)
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  const dir = posix.join(s.home, '.hublo-trash', id)
+  const r = await sshRun(s.conn, `mkdir -p ${shq(dir)} && printf '%s' ${shq(path)} > ${shq(dir + '/.origpath')} && mv -- ${shq(path)} ${shq(dir + '/')}`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Mise à la corbeille impossible : ' + (r.err || '').trim() })
+  audit(req, s.username, 'trash', path)
+  return { ok: true }
 })
 
 // upload (multipart) : dépose le(s) fichier(s) dans le dossier `path`
@@ -264,9 +280,77 @@ app.get('/api/fs/download', async (req, reply) => {
   const path = safePath(req.query.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   const name = posix.basename(path).replace(/["\\]/g, '')
-  reply.header('Content-Disposition', `attachment; filename="${name}"`)
-  reply.header('Content-Type', 'application/octet-stream')
+  const inline = req.query.inline === '1'
+  reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${name}"`)
+  reply.header('Content-Type', inline ? mimeFor(name) : 'application/octet-stream')
   return reply.send(s.sftp.createReadStream(path))
+})
+
+// ---------- CORBEILLE ----------
+app.get('/api/trash/list', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const base = posix.join(s.home, '.hublo-trash')
+  const cmd = `for d in ${shq(base)}/*/; do [ -d "$d" ] || continue; id=$(basename "$d"); orig=$(cat "$d/.origpath" 2>/dev/null); item=$(ls -A "$d" | grep -vx '.origpath' | head -1); printf '%s\\t%s\\t%s\\n' "$id" "$orig" "$item"; done`
+  const out = await sshExec(s.conn, cmd)
+  const items = out.trim().split('\n').filter(Boolean).map(l => {
+    const p = l.split('\t')
+    return { id: p[0], orig: p[1] || '', name: p[2] || '' }
+  }).filter(x => x.id && x.name)
+  return { items }
+})
+
+app.post('/api/trash/restore', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  if (!/^[a-z0-9]+$/.test(id)) return reply.code(400).send({ error: 'id invalide' })
+  const d = posix.join(s.home, '.hublo-trash', id)
+  const cmd = `d=${shq(d)}; orig=$(cat "$d/.origpath" 2>/dev/null); [ -z "$orig" ] && exit 3; item=$(ls -A "$d" | grep -vx '.origpath' | head -1); [ -z "$item" ] && exit 4; target="$orig"; [ -e "$target" ] && target="$orig-restauré-$(date +%s)"; mv -- "$d/$item" "$target" && rm -rf "$d" && printf '%s' "$target"`
+  const r = await sshRun(s.conn, cmd)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Restauration impossible' })
+  audit(req, s.username, 'restore', r.out)
+  return { ok: true, path: r.out }
+})
+
+app.post('/api/trash/empty', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const base = posix.join(s.home, '.hublo-trash')
+  const r = await sshRun(s.conn, `rm -rf ${shq(base)} && mkdir -p ${shq(base)}`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Vidage impossible' })
+  audit(req, s.username, 'trash-empty', '')
+  return { ok: true }
+})
+
+// ---------- ARCHIVES ----------
+app.post('/api/fs/compress', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const path = safePath(req.body?.path)
+  if (!path || path === '/' || path === s.home) return reply.code(400).send({ error: 'chemin invalide' })
+  const dir = posix.dirname(path), base = posix.basename(path)
+  const out = base + '.tar.gz'
+  const r = await sshRun(s.conn, `cd ${shq(dir)} && tar -czf ${shq(out)} -- ${shq(base)}`)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Compression impossible : ' + (r.err || '').trim() })
+  audit(req, s.username, 'compress', path)
+  return { ok: true, name: out }
+})
+
+app.post('/api/fs/extract', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const path = safePath(req.body?.path)
+  if (!path) return reply.code(400).send({ error: 'chemin invalide' })
+  const dir = posix.dirname(path), base = posix.basename(path), low = base.toLowerCase()
+  let folder, tool
+  if (low.endsWith('.zip')) {
+    folder = base.replace(/\.zip$/i, ''); tool = `unzip -o -q ${shq(base)} -d "$f"`
+  } else if (low.endsWith('.tar.gz') || low.endsWith('.tgz') || low.endsWith('.tar')) {
+    folder = base.replace(/\.(tar\.gz|tgz|tar)$/i, ''); tool = `tar -xf ${shq(base)} -C "$f"`
+  } else {
+    return reply.code(400).send({ error: 'Format non géré (zip, tar.gz, tgz, tar)' })
+  }
+  const cmd = `cd ${shq(dir)} || exit 1; f=${shq(folder)}; [ -e "$f" ] && f="$f-extrait-$(date +%s)"; mkdir -p "$f" && ${tool}`
+  const r = await sshRun(s.conn, cmd)
+  if (r.code !== 0) return reply.code(400).send({ error: 'Extraction impossible : ' + (r.err || '').trim() })
+  audit(req, s.username, 'extract', path)
+  return { ok: true }
 })
 
 // ---------- PROCESS (exec d'une commande EN DUR) ----------

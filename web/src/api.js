@@ -37,6 +37,12 @@ export const api = {
   sysinfo () { return get('/api/sysinfo') },
   search (path, q) { return get('/api/fs/search?path=' + encodeURIComponent(path) + '&q=' + encodeURIComponent(q)) },
   downloadUrl (path) { return '/api/fs/download?path=' + encodeURIComponent(path) },
+  rawUrl (path) { return '/api/fs/download?path=' + encodeURIComponent(path) + '&inline=1' },
+  compress (path) { return post('/api/fs/compress', { path }) },
+  extract (path) { return post('/api/fs/extract', { path }) },
+  trashList () { return get('/api/trash/list') },
+  trashRestore (id) { return post('/api/trash/restore', { id }) },
+  trashEmpty () { return post('/api/trash/empty') },
   async upload (file, destDir) {
     const fd = new FormData()
     fd.append('file', file)
@@ -62,6 +68,11 @@ export function fmtSize (n) {
 export function isImage (n) {
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']
     .includes((n.split('.').pop() || '').toLowerCase())
+}
+export function isPdf (n) { return (n.split('.').pop() || '').toLowerCase() === 'pdf' }
+export function isArchive (n) {
+  const l = n.toLowerCase()
+  return l.endsWith('.zip') || l.endsWith('.tar.gz') || l.endsWith('.tgz') || l.endsWith('.tar')
 }
 export function icoFor (e) {
   if (e.type === 'dir') return '📁'

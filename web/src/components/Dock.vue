@@ -36,5 +36,14 @@ function open (app) {
     >
       <span class="dock-ico">💧</span>
     </div>
+    <div class="dock-sep"></div>
+    <div
+      class="dock-item"
+      :class="{ running: windows.running.has('trash') }"
+      title="Corbeille"
+      @click="open('trash')"
+    >
+      <span class="dock-ico">🗑️</span>
+    </div>
   </div>
 </template>
