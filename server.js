@@ -498,6 +498,24 @@ app.get('/api/fs/info', async (req, reply) => {
   return { name: posix.basename(path), path, size: Number(size), mtime: Number(mtime) * 1000, octal, perms, owner, group, ftype }
 })
 
+// usage disque : taille (du) de chaque enfant du dossier, trié desc + df
+app.get('/api/fs/du', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.query.path || t.home)
+  if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const script = 'cd "$1" 2>/dev/null || exit 0; for f in * .[!.]*; do [ -e "$f" ] || continue; sz=$(du -sb -- "$f" 2>/dev/null | cut -f1); ty=$([ -d "$f" ] && echo d || echo f); printf "%s\\t%s\\t%s\\n" "$sz" "$ty" "$f"; done | sort -rn | head -n 200'
+  const out = await sshExec(t.conn, `timeout 120 sh -c ${shq(script)} _ ${shq(dir)}`)
+  const entries = out.trim().split('\n').filter(Boolean).map(l => {
+    const p = l.split('\t')
+    return { size: Number(p[0]) || 0, type: p[1] === 'd' ? 'dir' : 'file', name: p.slice(2).join('\t') }
+  }).filter(e => e.name)
+  const dfOut = await sshExec(t.conn, `df -B1 -P ${shq(dir)} | awk 'NR==2{print $2,$3,$4}'`)
+  const df = dfOut.trim().split(/\s+/).map(Number)
+  const total = entries.reduce((a, e) => a + e.size, 0)
+  return { path: dir, parent: dir === '/' ? null : posix.dirname(dir), entries, total, df: { total: df[0] || 0, used: df[1] || 0, avail: df[2] || 0 } }
+})
+
 // chmod
 app.post('/api/fs/chmod', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return

@@ -9,6 +9,7 @@ const items = [
   { app: 'terminal', ico: '🖥️', title: 'Terminal' },
   { app: 'monitor', ico: '📊', title: 'Moniteur d’activité' },
   { app: 'logs', ico: '📜', title: 'Logs' },
+  { app: 'storage', ico: '💾', title: 'Stockage' },
   { app: 'network', ico: '🌐', title: 'Lecteurs réseau' }
 ]
 
