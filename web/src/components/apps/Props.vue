@@ -5,9 +5,10 @@ import { api, fmtSize } from '../../api.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const wp = defineProps({ winId: { type: Number, required: true } })
 const windows = useWindowsStore()
 const toast = useToastStore()
-const win = computed(() => windows.byApp('props'))
+const win = computed(() => windows.byId(wp.winId))
 const path = computed(() => win.value?.path || '')
 const info = ref(null)
 const perms = ref({ u: { r: false, w: false, x: false }, g: { r: false, w: false, x: false }, o: { r: false, w: false, x: false } })
@@ -39,7 +40,7 @@ watch(path, load)
 </script>
 
 <template>
-  <WindowFrame app="props">
+  <WindowFrame :win-id="winId">
     <div class="props">
       <template v-if="info">
         <div class="props-head">

@@ -4,6 +4,7 @@ import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useToastStore } from '../../stores/toast.js'
 
+defineProps({ winId: { type: Number, required: true } })
 const toast = useToastStore()
 const hosts = ref([])
 function blank () { return { id: null, label: '', host: '', port: 22, user: '', auth: 'key', password: '', privateKey: '' } }
@@ -33,7 +34,7 @@ onMounted(load)
 </script>
 
 <template>
-  <WindowFrame app="network">
+  <WindowFrame :win-id="winId">
     <div class="net">
       <div class="net-list">
         <div class="net-title">Mes lecteurs réseau</div>

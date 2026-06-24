@@ -6,6 +6,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 
+const tp = defineProps({ winId: { type: Number, required: true } })
 const auth = useAuthStore()
 const windows = useWindowsStore()
 
@@ -27,7 +28,7 @@ function doFit () {
 
 onMounted(async () => {
   await nextTick()
-  windows.setTitle('terminal', 'Terminal — ' + (auth.username || ''))
+  windows.setTitle(tp.winId, 'Terminal — ' + (auth.username || ''))
 
   term = new Terminal({
     fontFamily: 'ui-monospace,Menlo,Consolas,monospace',
@@ -60,7 +61,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <WindowFrame app="terminal">
+  <WindowFrame :win-id="winId">
     <div ref="host" class="term-host"></div>
   </WindowFrame>
 </template>

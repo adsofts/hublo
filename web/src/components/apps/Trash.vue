@@ -4,6 +4,7 @@ import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useToastStore } from '../../stores/toast.js'
 
+defineProps({ winId: { type: Number, required: true } })
 const toast = useToastStore()
 const items = ref([])
 const loading = ref(false)
@@ -25,7 +26,7 @@ onMounted(load)
 </script>
 
 <template>
-  <WindowFrame app="trash" body-class="flexcol">
+  <WindowFrame :win-id="winId" body-class="flexcol">
     <div class="finder-bar">
       <button class="fbtn" @click="load">⟳</button>
       <span class="fpath">{{ items.length }} élément·s dans la corbeille</span>

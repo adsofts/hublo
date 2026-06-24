@@ -4,6 +4,7 @@ import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useToastStore } from '../../stores/toast.js'
 
+defineProps({ winId: { type: Number, required: true } })
 const toast = useToastStore()
 const rows = ref([])
 let iv = null
@@ -21,7 +22,7 @@ onBeforeUnmount(() => clearInterval(iv))
 </script>
 
 <template>
-  <WindowFrame app="monitor" body-class="mon">
+  <WindowFrame :win-id="winId" body-class="mon">
     <table>
       <thead>
         <tr>

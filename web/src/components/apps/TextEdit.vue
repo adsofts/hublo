@@ -11,7 +11,8 @@ const auth = useAuthStore()
 const windows = useWindowsStore()
 const toast = useToastStore()
 
-const win = computed(() => windows.byApp('textedit'))
+const tp = defineProps({ winId: { type: Number, required: true } })
+const win = computed(() => windows.byId(tp.winId))
 
 const editorHost = ref(null)
 let editor = null
@@ -23,7 +24,7 @@ const status = ref('')
 
 const docName = computed(() => curPath.value || 'Nouveau document')
 
-function setTitle (t) { windows.setTitle('textedit', t) }
+function setTitle (t) { windows.setTitle(tp.winId, t) }
 
 async function openPath (path) {
   if (!editor) return
@@ -109,7 +110,7 @@ watch(() => win.value && win.value.path, (p, old) => {
 </script>
 
 <template>
-  <WindowFrame app="textedit" body-class="flexcol">
+  <WindowFrame :win-id="winId" body-class="flexcol">
     <div class="te-bar">
       <span class="te-name">{{ docName }}</span>
       <button class="fbtn" @click="save" :disabled="!!win?.host">Enregistrer</button>

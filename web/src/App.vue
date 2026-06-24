@@ -34,7 +34,7 @@ watch(() => auth.username, (u, old) => {
 // rafraîchit les icônes du bureau quand une fenêtre s'ouvre/se ferme (ex. après le gestionnaire d'hôtes)
 watch(() => windows.wins.length, () => { if (auth.username) loadDrives() })
 
-function has (app) { return windows.running.has(app) }
+const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, props: Props, preview: Preview, about: About }
 </script>
 
 <template>
@@ -50,16 +50,7 @@ function has (app) { return windows.running.has(app) }
       </div>
     </div>
     <div id="windows">
-      <Finder v-if="has('finder')" />
-      <TextEdit v-if="has('textedit')" />
-      <Terminal v-if="has('terminal')" />
-      <Monitor v-if="has('monitor')" />
-      <SysInfo v-if="has('sysinfo')" />
-      <Trash v-if="has('trash')" />
-      <Network v-if="has('network')" />
-      <Props v-if="has('props')" />
-      <Preview v-if="has('preview')" />
-      <About v-if="has('about')" />
+      <component v-for="w in windows.wins" :key="w.id" :is="COMPS[w.app]" :win-id="w.id" />
     </div>
     <Dock />
   </div>
