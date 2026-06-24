@@ -11,6 +11,7 @@ const items = [
   { app: 'logs', ico: '📜', title: 'Logs' },
   { app: 'storage', ico: '💾', title: 'Stockage' },
   { app: 'db', ico: '🗄️', title: 'Base de données' },
+  { app: 'git', ico: '🔀', title: 'Git' },
   { app: 'network', ico: '🌐', title: 'Lecteurs réseau' }
 ]
 

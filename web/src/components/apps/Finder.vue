@@ -173,6 +173,7 @@ async function paste () {
 }
 function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name, host: state.host }) }
 function tailLogs (e) { windows.open('logs', { path: entryPath(e), host: state.host }) }
+function openGit (e) { windows.open('git', { path: entryPath(e), host: state.host }) }
 
 async function uploadFiles (files, destDir) {
   for (const f of files) {
@@ -310,6 +311,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
     <div v-if="ctx.show" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <template v-if="ctx.e">
         <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
+        <div v-if="ctx.e.type === 'dir'" class="ctx-item" @click="openGit(ctx.e); closeCtx()">Ouvrir dans Git</div>
         <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
         <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="tailLogs(ctx.e); closeCtx()">Suivre les logs</div>
         <div class="ctx-sep"></div>

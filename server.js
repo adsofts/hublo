@@ -678,6 +678,90 @@ app.post('/api/db/query', async (req, reply) => {
   } catch (e) { return reply.code(400).send({ error: e.message }) }
 })
 
+// ===== Client Git =====
+app.get('/api/git/status', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.query.path)
+  if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const r = await sshRun(t.conn, `git -C ${shq(dir)} status --porcelain -b 2>&1`)
+  if (r.code !== 0) return { isRepo: false, message: (r.out || '').trim() }
+  let branch = '', ahead = 0, behind = 0
+  const staged = [], unstaged = [], untracked = []
+  for (const ln of r.out.split('\n')) {
+    if (ln.startsWith('## ')) {
+      const m = ln.slice(3)
+      branch = m.split('...')[0].split(' ')[0]
+      const am = m.match(/ahead (\d+)/); if (am) ahead = +am[1]
+      const bm = m.match(/behind (\d+)/); if (bm) behind = +bm[1]
+      continue
+    }
+    if (ln.length < 4) continue
+    const x = ln[0], y = ln[1], p = ln.slice(3)
+    if (x === '?' && y === '?') { untracked.push(p); continue }
+    if (x !== ' ' && x !== '?') staged.push({ path: p, st: x })
+    if (y !== ' ' && y !== '?') unstaged.push({ path: p, st: y })
+  }
+  return { isRepo: true, branch, ahead, behind, staged, unstaged, untracked }
+})
+
+app.get('/api/git/log', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.query.path); if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const r = await sshRun(t.conn, `git -C ${shq(dir)} log --max-count=40 --pretty=format:'%h%x1f%an%x1f%ar%x1f%s' 2>&1`)
+  if (r.code !== 0) return { commits: [] }
+  const commits = r.out.split('\n').filter(Boolean).map(l => { const p = l.split('\x1f'); return { hash: p[0], author: p[1], when: p[2], subject: p[3] || '' } })
+  return { commits }
+})
+
+app.get('/api/git/diff', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.query.path); if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const file = String(req.query.file || '')
+  const mode = req.query.mode
+  let cmd
+  if (mode === 'staged') cmd = `git -C ${shq(dir)} diff --cached -- ${shq(file)} 2>&1`
+  else if (mode === 'untracked') cmd = `git -C ${shq(dir)} diff --no-index -- /dev/null ${shq(file)} 2>&1`
+  else cmd = `git -C ${shq(dir)} diff -- ${shq(file)} 2>&1`
+  const r = await sshRun(t.conn, cmd)
+  return { diff: r.out }
+})
+
+async function gitWrite (s, req, reply, build, action) {
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.body?.path); if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
+  const r = await sshRun(t.conn, build(dir, shq))
+  audit(req, s.username, 'git-' + action, dir)
+  if (r.code !== 0) return reply.code(400).send({ error: (r.out || r.err || '').trim() || 'échec', output: r.out })
+  return { ok: true, output: r.out }
+}
+app.post('/api/git/stage', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const file = String(req.body?.file || '')
+  return gitWrite(s, req, reply, (dir, q) => file ? `git -C ${q(dir)} add -- ${q(file)} 2>&1` : `git -C ${q(dir)} add -A 2>&1`, 'stage')
+})
+app.post('/api/git/unstage', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const file = String(req.body?.file || '')
+  return gitWrite(s, req, reply, (dir, q) => file ? `git -C ${q(dir)} restore --staged -- ${q(file)} 2>&1` : `git -C ${q(dir)} reset -q 2>&1`, 'unstage')
+})
+app.post('/api/git/commit', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const msg = String(req.body?.message || '').trim()
+  if (!msg) return reply.code(400).send({ error: 'message requis' })
+  return gitWrite(s, req, reply, (dir, q) => `git -C ${q(dir)} commit -m ${q(msg)} 2>&1`, 'commit')
+})
+app.post('/api/git/pull', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  return gitWrite(s, req, reply, (dir, q) => `timeout 90 git -C ${q(dir)} pull 2>&1`, 'pull')
+})
+app.post('/api/git/push', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  return gitWrite(s, req, reply, (dir, q) => `timeout 90 git -C ${q(dir)} push 2>&1`, 'push')
+})
+
 // ---------- PROCESS (exec d'une commande EN DUR) ----------
 app.get('/api/ps', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return

@@ -176,6 +176,37 @@ body{
 .db-table th{position:sticky;top:0;background:#f3f3f5;font-weight:600;color:#444}
 .db-table tr:hover td{background:#f4f8ff}
 .db-table td.dbnull{color:#aaa;font-style:italic}
+
+/* Client Git */
+.g-branch{font-size:12px;color:#0a7a28;font-weight:600;white-space:nowrap}
+.git-main{flex:1;display:flex;flex-direction:row;min-height:0;overflow:hidden}
+.git-left{flex:0 0 320px;overflow:auto;border-right:1px solid #e2e2e2;position:relative;background:#fafafa}
+.git-right{flex:1;display:flex;flex-direction:column;min-width:0}
+.git-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#9a9aa0;padding:9px 10px 3px;display:flex;justify-content:space-between;align-items:center}
+.git-file{display:flex;align-items:center;gap:7px;padding:4px 10px;font-size:12.5px;cursor:pointer}
+.git-file:hover{background:#eef3ff}
+.git-file.sel{background:#dbe7ff}
+.g-st{flex:0 0 auto;width:16px;height:16px;border-radius:4px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff}
+.g-stg{background:#2da44e}.g-mod{background:#bf8700}.g-new{background:#999}
+.g-fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#222}
+.g-mini{border:0;background:#e9e9ec;border-radius:5px;font-size:12px;line-height:1;padding:2px 7px;cursor:pointer;color:#444}
+.g-mini:hover{background:#dcdce0}
+.git-commit{position:sticky;bottom:0;background:#fff;border-top:1px solid #e2e2e2;padding:8px;display:flex;flex-direction:column;gap:6px}
+.git-commit textarea{width:100%;border:1px solid #e2e2e2;border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit;resize:vertical;outline:none}
+.git-tabs{flex:0 0 auto;display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid #e2e2e2;background:#f6f6f6}
+.git-tabs button{border:0;background:transparent;font-size:12.5px;padding:4px 12px;border-radius:6px;cursor:pointer;color:#555}
+.git-tabs button.on{background:var(--accent);color:#fff}
+.gdiff{flex:1;overflow:auto;background:#1e1e1e;color:#d4d4d4;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;padding:6px 0}
+.gline{white-space:pre-wrap;word-break:break-word;padding:0 10px}
+.gline.g-add{background:rgba(46,160,67,.18);color:#7ee787}
+.gline.g-del{background:rgba(248,81,73,.18);color:#ffa198}
+.gline.g-hunk{color:#79c0ff}
+.gline.g-dmeta{color:#8b949e}
+.gitlog{flex:1;overflow:auto;padding:4px 0;background:#fff}
+.gitlog-row{padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12.5px}
+.g-hash{font-family:ui-monospace,Menlo,monospace;color:#bf8700;font-size:12px}
+.g-subj{color:#222}
+.g-when{font-size:11px;color:var(--muted);margin-top:2px}
 .trash-list{flex:1;overflow:auto;padding:6px}
 .trash-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid #eee}
 .trash-ic{font-size:26px;line-height:1}
