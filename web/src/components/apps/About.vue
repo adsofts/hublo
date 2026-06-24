@@ -2,12 +2,13 @@
 import WindowFrame from '../WindowFrame.vue'
 import { useAuthStore } from '../../stores/auth.js'
 
+defineProps({ winId: { type: Number, required: true } })
 const auth = useAuthStore()
 const host = location.host
 </script>
 
 <template>
-  <WindowFrame app="about">
+  <WindowFrame :win-id="winId">
     <div class="about">
       <div class="big">💧</div>
       <h2>Hublo</h2>

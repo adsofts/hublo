@@ -49,9 +49,9 @@ const menus = {
     { label: 'Se déconnecter', act: logout }
   ],
   fichier: [
-    { label: 'Nouvelle fenêtre Finder', act: () => windows.open('finder') },
-    { label: 'Nouveau document', act: () => windows.open('textedit', { path: null, title: 'TextEdit' }) },
-    { label: 'Nouveau terminal', act: () => windows.open('terminal') }
+    { label: 'Nouvelle fenêtre Finder', act: () => windows.openNew('finder') },
+    { label: 'Nouveau document', act: () => windows.openNew('textedit', { path: null, title: 'TextEdit' }) },
+    { label: 'Nouveau terminal', act: () => windows.openNew('terminal') }
   ],
   presentation: [
     { label: 'Moniteur d’activité', act: () => windows.open('monitor') },

@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const wp = defineProps({ winId: { type: Number, required: true } })
 const auth = useAuthStore()
 const windows = useWindowsStore()
 const toast = useToastStore()
@@ -24,7 +25,6 @@ const state = reactive({
 })
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
-const clipboard = ref(null)  // { path, name, mode: 'copy' | 'cut' }
 const ctx = reactive({ show: false, x: 0, y: 0, e: null })
 
 // ---- lecteurs réseau ----
@@ -43,6 +43,7 @@ async function load (p, push = true) {
     state.parent = d.parent
     state.sel = null
     state.entries = d.entries
+    windows.setTitle(wp.winId, (state.host ? '🌐 ' + state.hostLabel + ' · ' : '') + state.path)
   } catch (ex) {
     toast.show(ex.message)
   }
@@ -82,6 +83,7 @@ function dblclick (e) {
 function goUp () { if (state.parent) load(state.parent) }
 function goBack () { const p = state.hist.pop(); if (p) load(p, false) }
 function reload () { load(state.path, false) }
+function goPath () { const p = prompt('Aller au dossier :', state.path); if (p) load(p) }
 
 async function mkdir () {
   const n = prompt('Nom du nouveau dossier :')
@@ -151,15 +153,16 @@ function closeCtx () {
   document.removeEventListener('click', closeCtx)
   document.removeEventListener('contextmenu', closeCtx)
 }
-function copyItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'copy' }; toast.show('Copié') }
-function cutItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'cut' }; toast.show('Coupé') }
+function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy' }); toast.show('Copié') }
+function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut' }); toast.show('Coupé') }
 async function paste () {
   if (roGuard()) return
-  if (!clipboard.value) return
-  const dest = join(state.path, clipboard.value.name)
+  const c = windows.clip
+  if (!c) return
+  const dest = join(state.path, c.name)
   try {
-    if (clipboard.value.mode === 'copy') await api.copy(clipboard.value.path, dest)
-    else { await api.rename(clipboard.value.path, dest); clipboard.value = null }
+    if (c.mode === 'copy') await api.copy(c.path, dest)
+    else { await api.rename(c.path, dest); windows.setClip(null) }
     refresh(); toast.show('Collé')
   } catch (ex) { toast.show(ex.message) }
 }
@@ -225,7 +228,7 @@ async function onGridDrop (ev) {
 
 // chargement initial — honore un éventuel hôte demandé depuis le bureau
 loadDrives()
-const finderWin = computed(() => windows.byApp('finder'))
+const finderWin = computed(() => windows.byId(wp.winId))
 if (finderWin.value?.gotoHost) { state.host = finderWin.value.gotoHost; load(null, false) }
 else load(state.path, false)
 watch(() => finderWin.value?.gotoHost, (hid, old) => {
@@ -238,7 +241,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
 </script>
 
 <template>
-  <WindowFrame app="finder" body-class="finder-body">
+  <WindowFrame :win-id="winId" body-class="finder-body">
     <div class="finder-side">
       <div class="side-sec">Emplacements</div>
       <div class="side-item" :class="{ active: !state.host }" @click="goLocal"><span>🖥️</span> Cet ordinateur</div>
@@ -251,7 +254,8 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <button class="fbtn" title="Précédent" :disabled="!state.hist.length" @click="goBack">‹</button>
       <button class="fbtn" title="Dossier parent" :disabled="!state.parent" @click="goUp">↑</button>
       <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
-      <span class="fpath">{{ isRemote ? '🌐 ' + state.hostLabel + ' · ' : '' }}{{ state.path }}</span>
+      <button class="fbtn" title="Aller au dossier…" @click="goPath">📂 Aller à…</button>
+      <span class="fspace"></span>
       <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput" :disabled="isRemote">
       <button class="fbtn" title="Importer des fichiers" :disabled="isRemote" @click="importClick">⬆ Importer</button>
       <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">⬇ Télécharger</button>
@@ -301,7 +305,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
           <div class="ctx-sep"></div>
           <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
           <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
-          <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+          <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
           <div class="ctx-sep"></div>
           <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
           <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
@@ -315,7 +319,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <template v-else>
         <div v-if="!isRemote" class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
         <div v-if="!isRemote" class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
-        <div v-if="clipboard && !isRemote" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div v-if="windows.clip && !isRemote" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
         <div v-if="isRemote" class="ctx-item dim">Lecteur réseau — lecture seule</div>
       </template>
     </div>
