@@ -2,6 +2,8 @@
 
 > A macOS-style web desktop to manage your space on a Linux server — securely, without the command line.
 
+![Hublo — Finder, Activity Monitor and Terminal running in the browser](docs/hublo.png)
+
 Hublo is a self-hosted web app that gives you a familiar desktop (windows, Dock, Finder) **in the browser** to act inside **your own space** on a Linux server: browse/edit/move files, follow logs, inspect disk usage, run a terminal, query a Postgres database, use Git, and more — all **as your Unix user**, so the kernel's own permissions are the security boundary. The gateway never runs as root.
 
 It started as a way to let a non-technical teammate operate safely on a server without the terminal, and grew into a small "web OS" of practical sysadmin / dev tools.
