@@ -50,6 +50,12 @@ export const api = {
   copy (from, to, host) { return post('/api/fs/copy', { from, to, host }) },
   transfer (fromHost, fromPath, toHost, toDir, mode) { return post('/api/fs/transfer', { fromHost, fromPath, toHost, toDir, mode }) },
   info (path, host) { return get('/api/fs/info?path=' + encodeURIComponent(path) + hq(host)) },
+  du (path, host) {
+    const q = []
+    if (path) q.push('path=' + encodeURIComponent(path))
+    if (host) q.push('host=' + encodeURIComponent(host))
+    return get('/api/fs/du?' + q.join('&'))
+  },
   chmod (path, mode, host) { return post('/api/fs/chmod', { path, mode, host }) },
   hostsList () { return get('/api/hosts/list') },
   hostSave (h) { return post('/api/hosts/save', h) },

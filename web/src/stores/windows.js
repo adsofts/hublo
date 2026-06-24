@@ -12,6 +12,7 @@ const APP_META = {
   trash: { title: 'Corbeille', w: 520, h: 400 },
   network: { title: 'Lecteurs réseau', w: 580, h: 500 },
   logs: { title: 'Logs', w: 720, h: 460 },
+  storage: { title: 'Stockage', w: 560, h: 480 },
   props: { title: 'Infos', w: 360, h: 480 },
   about: { title: 'À propos de Hublo', w: 380, h: 300 }
 }

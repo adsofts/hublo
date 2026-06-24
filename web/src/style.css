@@ -146,6 +146,18 @@ body{
 .logp{flex:1;min-width:120px}
 .logview{flex:1;overflow:auto;background:#1e1e1e;color:#d4d4d4;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;padding:8px 10px}
 .logline{white-space:pre-wrap;word-break:break-word}
+
+/* Stockage / espace disque */
+.du-df{flex:0 0 auto;padding:10px 14px;border-bottom:1px solid #ececec}
+.du-dfhead{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px}
+.du-list{flex:1;overflow:auto;padding:4px 0}
+.du-row{display:flex;align-items:center;gap:10px;padding:6px 14px;cursor:default;font-size:13px}
+.du-row:hover{background:#f4f8ff}
+.du-ic{font-size:20px;flex:0 0 auto;line-height:1}
+.du-name{flex:0 0 34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.du-bar{flex:1;height:10px;border-radius:5px;background:#ececef;overflow:hidden}
+.du-bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#0a84ff,#5e5ce6)}
+.du-size{flex:0 0 auto;width:84px;text-align:right;font-variant-numeric:tabular-nums;color:#444;font-size:12px}
 .trash-list{flex:1;overflow:auto;padding:6px}
 .trash-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid #eee}
 .trash-ic{font-size:26px;line-height:1}
