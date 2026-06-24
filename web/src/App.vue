@@ -16,6 +16,7 @@ import Trash from './components/apps/Trash.vue'
 import Network from './components/apps/Network.vue'
 import Logs from './components/apps/Logs.vue'
 import Storage from './components/apps/Storage.vue'
+import DBClient from './components/apps/DBClient.vue'
 import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
@@ -36,7 +37,7 @@ watch(() => auth.username, (u, old) => {
 // rafraîchit les icônes du bureau quand une fenêtre s'ouvre/se ferme (ex. après le gestionnaire d'hôtes)
 watch(() => windows.wins.length, () => { if (auth.username) loadDrives() })
 
-const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, props: Props, preview: Preview, about: About }
+const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, db: DBClient, props: Props, preview: Preview, about: About }
 </script>
 
 <template>

@@ -158,6 +158,24 @@ body{
 .du-bar{flex:1;height:10px;border-radius:5px;background:#ececef;overflow:hidden}
 .du-bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#0a84ff,#5e5ce6)}
 .du-size{flex:0 0 auto;width:84px;text-align:right;font-variant-numeric:tabular-nums;color:#444;font-size:12px}
+
+/* Client base de données */
+.db-form{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;background:#f6f6f6;border-bottom:1px solid #e2e2e2}
+.db-form input{height:28px;border:1px solid #e2e2e2;border-radius:7px;padding:0 9px;font-size:12px;outline:none;background:#fff}
+.db-form input:focus{border-color:var(--accent)}
+.db-main{flex:1;display:flex;flex-direction:row;min-height:0;overflow:hidden}
+.db-side{flex:0 0 180px;overflow:auto;background:#f0f0f3;border-right:1px solid #e2e2e2;padding:6px}
+.db-work{flex:1;display:flex;flex-direction:column;min-width:0}
+.db-editor{flex:0 0 42%;border-bottom:1px solid #e2e2e2;min-height:0}
+.db-result{flex:1;overflow:auto;min-height:0;background:#fff}
+.db-meta{font-size:12px;color:var(--muted);padding:6px 12px;border-bottom:1px solid #f0f0f0;position:sticky;top:0;background:#fafafa}
+.db-err{padding:12px 14px;color:#c0341d;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:pre-wrap}
+.db-table-wrap{overflow:auto}
+.db-table{border-collapse:collapse;font-size:12px;width:100%}
+.db-table th,.db-table td{border:1px solid #ececec;padding:4px 8px;text-align:left;white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.db-table th{position:sticky;top:0;background:#f3f3f5;font-weight:600;color:#444}
+.db-table tr:hover td{background:#f4f8ff}
+.db-table td.dbnull{color:#aaa;font-style:italic}
 .trash-list{flex:1;overflow:auto;padding:6px}
 .trash-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid #eee}
 .trash-ic{font-size:26px;line-height:1}

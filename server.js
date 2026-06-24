@@ -9,6 +9,7 @@ import fastifyStatic from '@fastify/static'
 import fastifyWebsocket from '@fastify/websocket'
 import fastifyMultipart from '@fastify/multipart'
 import { Client as SSHClient } from 'ssh2'
+import pg from 'pg'
 import { randomBytes } from 'node:crypto'
 import { appendFile, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -200,6 +201,25 @@ async function ensureRemote (s, hostId) {
 async function resolveTarget (s, hostId) {
   if (!hostId || hostId === 'local') return { sftp: s.sftp, conn: s.conn, home: s.home }
   return await ensureRemote(s, hostId)
+}
+
+// ===== Connexions base de données (Postgres) — stockées dans ~/.hublo/db.json =====
+const dbFile = (s) => posix.join(hubloDir(s), 'db.json')
+async function readDbConns (s) {
+  try { const buf = await pf(s.sftp.readFile.bind(s.sftp), dbFile(s)); return JSON.parse(buf.toString('utf8')) } catch { return [] }
+}
+async function writeDbConns (s, arr) {
+  await sshRun(s.conn, `mkdir -p ${shq(hubloDir(s))} && chmod 700 ${shq(hubloDir(s))}`)
+  await pf(s.sftp.writeFile.bind(s.sftp), dbFile(s), JSON.stringify(arr, null, 2))
+}
+async function pgRun (cfg, sql) {
+  const client = new pg.Client({
+    host: cfg.host || '127.0.0.1', port: cfg.port || 5432, database: cfg.database,
+    user: cfg.user, password: cfg.password,
+    connectionTimeoutMillis: 8000, statement_timeout: 20000, query_timeout: 20000
+  })
+  await client.connect()
+  try { return await client.query(sql) } finally { try { await client.end() } catch {} }
 }
 
 // ---------- AUTH ----------
@@ -585,6 +605,77 @@ app.post('/api/hosts/test', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   try { const r = await ensureRemote(s, String(req.body?.id || '')); return { ok: true, home: r.home } }
   catch (e) { return reply.code(400).send({ error: e.message }) }
+})
+
+// ===== Client base de données (Postgres) =====
+app.get('/api/db/list', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const c = await readDbConns(s)
+  return { conns: c.map(x => ({ id: x.id, label: x.label, host: x.host, port: x.port, database: x.database, user: x.user })) }
+})
+
+app.post('/api/db/save', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const b = req.body || {}
+  const host = String(b.host || '127.0.0.1').trim(), database = String(b.database || '').trim(), user = String(b.user || '').trim()
+  const port = Number(b.port) || 5432
+  const label = String(b.label || database).trim()
+  if (!database || !user) return reply.code(400).send({ error: 'database et user requis' })
+  const conns = await readDbConns(s)
+  let entry = (b.id && conns.find(x => x.id === b.id)) || null
+  if (!entry) { entry = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }; conns.push(entry) }
+  Object.assign(entry, { label, host, port, database, user })
+  if (b.password != null && b.password !== '') entry.password = String(b.password)
+  await writeDbConns(s, conns)
+  audit(req, s.username, 'db-save', entry.id + ' ' + user + '@' + host + '/' + database)
+  return { ok: true, id: entry.id }
+})
+
+app.post('/api/db/delete', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  await writeDbConns(s, (await readDbConns(s)).filter(x => x.id !== id))
+  audit(req, s.username, 'db-delete', id)
+  return { ok: true }
+})
+
+async function dbCfg (s, id) { return (await readDbConns(s)).find(x => x.id === id) }
+
+app.post('/api/db/test', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const cfg = await dbCfg(s, String(req.body?.id || ''))
+  if (!cfg) return reply.code(404).send({ error: 'connexion inconnue' })
+  try { const r = await pgRun(cfg, 'SELECT version()'); return { ok: true, version: r.rows[0].version } }
+  catch (e) { return reply.code(400).send({ error: e.message }) }
+})
+
+app.get('/api/db/tables', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const cfg = await dbCfg(s, String(req.query.conn || ''))
+  if (!cfg) return reply.code(404).send({ error: 'connexion inconnue' })
+  try {
+    const r = await pgRun(cfg, "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name")
+    return { tables: r.rows.map(x => ({ schema: x.table_schema, name: x.table_name })) }
+  } catch (e) { return reply.code(400).send({ error: e.message }) }
+})
+
+app.post('/api/db/query', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const cfg = await dbCfg(s, String(req.body?.conn || ''))
+  if (!cfg) return reply.code(404).send({ error: 'connexion inconnue' })
+  const sql = String(req.body?.sql || '').trim()
+  if (!sql) return reply.code(400).send({ error: 'requête vide' })
+  try {
+    const res = await pgRun(cfg, sql)
+    const r = Array.isArray(res) ? res[res.length - 1] : res
+    const columns = (r.fields || []).map(f => f.name)
+    const rows = (r.rows || []).slice(0, 1000).map(row => columns.map(c => {
+      const v = row[c]
+      return v === null ? null : (typeof v === 'object' ? JSON.stringify(v) : v)
+    }))
+    audit(req, s.username, 'db-query', cfg.database + ': ' + sql.slice(0, 80))
+    return { columns, rows, rowCount: r.rowCount ?? rows.length, command: r.command || '', truncated: (r.rows || []).length > 1000 }
+  } catch (e) { return reply.code(400).send({ error: e.message }) }
 })
 
 // ---------- PROCESS (exec d'une commande EN DUR) ----------
