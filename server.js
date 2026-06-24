@@ -45,6 +45,7 @@ await app.register(fastifyMultipart, { limits: { fileSize: 100 * 1024 * 1024 } }
 await app.register(fastifyStatic, {
   root: join(__dirname, 'public'),
   prefix: '/',
+  cacheControl: false,
   setHeaders (res, p) {
     // index.html toujours revalidé ; assets hashés cachés longtemps
     if (p.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache')
