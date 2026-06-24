@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import WindowFrame from '../WindowFrame.vue'
-import { api, join, icoFor, isImage, isPdf, isArchive } from '../../api.js'
+import { api, join, icoFor, isImage, isPdf, isArchive, fmtSize } from '../../api.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
@@ -21,8 +21,15 @@ const state = reactive({
   query: '',
   searching: false,
   host: null,        // null = local, sinon id de lecteur réseau
-  hostLabel: ''
+  hostLabel: '',
+  view: localStorage.getItem('hublo.finderView') || 'icons'   // 'icons' | 'list'
 })
+function setView (v) { state.view = v; try { localStorage.setItem('hublo.finderView', v) } catch { /* */ } }
+function fmtDate (ms) {
+  if (!ms) return ''
+  const d = new Date(ms)
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
 const ctx = reactive({ show: false, x: 0, y: 0, e: null })
@@ -266,6 +273,8 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <button class="fbtn" title="Dossier parent" :disabled="!state.parent" @click="goUp">↑</button>
       <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
       <button class="fbtn" title="Aller au dossier…" @click="goPath">📂 Aller à…</button>
+      <button class="fbtn" :class="{ on: state.view === 'icons' }" title="Affichage icônes" @click="setView('icons')">▦</button>
+      <button class="fbtn" :class="{ on: state.view === 'list' }" title="Affichage liste" @click="setView('list')">☰</button>
       <span class="fspace"></span>
       <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput">
       <button class="fbtn" title="Importer des fichiers" @click="importClick">⬆ Importer</button>
@@ -277,6 +286,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">Extraire</button>
     </div>
     <div
+      v-if="state.view === 'icons'"
       class="grid"
       :class="{ drop: state.gridDrop }"
       @dragover="onGridDragOver"
@@ -302,6 +312,37 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       >
         <div class="ic">{{ icoFor(e) }}</div>
         <div class="nm">{{ e.name }}</div>
+      </div>
+    </div>
+    <div
+      v-else
+      class="flist"
+      :class="{ drop: state.gridDrop }"
+      @dragover="onGridDragOver"
+      @dragleave="onGridDragLeave"
+      @drop="onGridDrop"
+      @contextmenu="openCtx($event, null)"
+    >
+      <div class="flist-head"><span class="fl-name">Nom</span><span class="fl-size">Taille</span><span class="fl-date">Modifié</span></div>
+      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? 'Aucun résultat' : 'Dossier vide' }}</div>
+      <div
+        v-for="e in state.entries"
+        :key="entryPath(e)"
+        class="flist-row"
+        :class="{ sel: state.sel && entryPath(state.sel) === entryPath(e), drop: dropTarget === e.name }"
+        :title="entryPath(e)"
+        draggable="true"
+        @click="select(e)"
+        @dblclick="dblclick(e)"
+        @contextmenu="openCtx($event, e)"
+        @dragstart="onDragStart($event, e)"
+        @dragover="onCellDragOver($event, e)"
+        @dragleave="onCellDragLeave(e)"
+        @drop="onCellDrop($event, e)"
+      >
+        <span class="fl-name"><span class="fl-ic">{{ icoFor(e) }}</span>{{ e.name }}</span>
+        <span class="fl-size">{{ e.type === 'dir' ? '—' : fmtSize(e.size) }}</span>
+        <span class="fl-date">{{ fmtDate(e.mtime) }}</span>
       </div>
     </div>
     <input ref="uplInput" type="file" multiple style="display:none" @change="onUpload">
