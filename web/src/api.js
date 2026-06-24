@@ -36,20 +36,20 @@ export const api = {
     return get('/api/fs/list?' + q.join('&'))
   },
   read (path, host) { return get('/api/fs/read?path=' + encodeURIComponent(path) + hq(host)) },
-  write (path, content) { return post('/api/fs/write', { path, content }) },
-  mkdir (path) { return post('/api/fs/mkdir', { path }) },
-  rename (from, to) { return post('/api/fs/rename', { from, to }) },
-  remove (path) { return post('/api/fs/delete', { path }) },
+  write (path, content, host) { return post('/api/fs/write', { path, content, host }) },
+  mkdir (path, host) { return post('/api/fs/mkdir', { path, host }) },
+  rename (from, to, host) { return post('/api/fs/rename', { from, to, host }) },
+  remove (path, host) { return post('/api/fs/delete', { path, host }) },
   ps () { return get('/api/ps') },
   sysinfo () { return get('/api/sysinfo') },
-  search (path, q) { return get('/api/fs/search?path=' + encodeURIComponent(path) + '&q=' + encodeURIComponent(q)) },
+  search (path, q, host) { return get('/api/fs/search?path=' + encodeURIComponent(path) + '&q=' + encodeURIComponent(q) + hq(host)) },
   downloadUrl (path, host) { return '/api/fs/download?path=' + encodeURIComponent(path) + hq(host) },
   rawUrl (path, host) { return '/api/fs/download?path=' + encodeURIComponent(path) + '&inline=1' + hq(host) },
-  compress (path) { return post('/api/fs/compress', { path }) },
-  extract (path) { return post('/api/fs/extract', { path }) },
-  copy (from, to) { return post('/api/fs/copy', { from, to }) },
+  compress (path, host) { return post('/api/fs/compress', { path, host }) },
+  extract (path, host) { return post('/api/fs/extract', { path, host }) },
+  copy (from, to, host) { return post('/api/fs/copy', { from, to, host }) },
   info (path, host) { return get('/api/fs/info?path=' + encodeURIComponent(path) + hq(host)) },
-  chmod (path, mode) { return post('/api/fs/chmod', { path, mode }) },
+  chmod (path, mode, host) { return post('/api/fs/chmod', { path, mode, host }) },
   hostsList () { return get('/api/hosts/list') },
   hostSave (h) { return post('/api/hosts/save', h) },
   hostDelete (id) { return post('/api/hosts/delete', { id }) },
@@ -57,10 +57,10 @@ export const api = {
   trashList () { return get('/api/trash/list') },
   trashRestore (id) { return post('/api/trash/restore', { id }) },
   trashEmpty () { return post('/api/trash/empty') },
-  async upload (file, destDir) {
+  async upload (file, destDir, host) {
     const fd = new FormData()
     fd.append('file', file)
-    const r = await fetch('/api/fs/upload?path=' + encodeURIComponent(destDir), {
+    const r = await fetch('/api/fs/upload?path=' + encodeURIComponent(destDir) + hq(host), {
       method: 'POST',
       credentials: 'same-origin',
       body: fd

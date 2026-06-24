@@ -33,7 +33,6 @@ const isRemote = computed(() => !!state.host)
 async function loadDrives () { try { drives.value = (await api.hostsList()).hosts } catch { /* ignore */ } }
 function goLocal () { state.host = null; state.hostLabel = ''; state.hist = []; state.query = ''; state.searching = false; load(null, false) }
 function goHost (d) { state.host = d.id; state.hostLabel = d.label || d.host; state.hist = []; state.query = ''; state.searching = false; load(null, false) }
-function roGuard () { if (state.host) { toast.show('Lecture seule sur un lecteur réseau (écriture distante à venir)'); return true } return false }
 
 async function load (p, push = true) {
   try {
@@ -65,7 +64,7 @@ async function doSearch (q) {
     return
   }
   try {
-    const d = await api.search(state.path, q.trim())
+    const d = await api.search(state.path, q.trim(), state.host)
     state.entries = d.entries
     state.sel = null
     state.searching = true
@@ -88,7 +87,7 @@ function goPath () { const p = prompt('Aller au dossier :', state.path); if (p) 
 async function mkdir () {
   const n = prompt('Nom du nouveau dossier :')
   if (!n) return
-  try { await api.mkdir(join(state.path, n)); load(state.path, false); toast.show('Dossier créé') }
+  try { await api.mkdir(join(state.path, n), state.host); refresh(); toast.show('Dossier créé') }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -96,14 +95,14 @@ async function rename () {
   if (!state.sel) return
   const n = prompt('Nouveau nom :', state.sel.name)
   if (!n || n === state.sel.name) return
-  try { const src = entryPath(state.sel); await api.rename(src, join(dirOf(src), n)); refresh(); toast.show('Renommé') }
+  try { const src = entryPath(state.sel); await api.rename(src, join(dirOf(src), n), state.host); refresh(); toast.show('Renommé') }
   catch (ex) { toast.show(ex.message) }
 }
 
 async function remove () {
   if (!state.sel) return
   if (!confirm('Mettre « ' + state.sel.name + ' » à la corbeille ?')) return
-  try { await api.remove(entryPath(state.sel)); refresh(); toast.show('Supprimé') }
+  try { await api.remove(entryPath(state.sel), state.host); refresh(); toast.show('Supprimé') }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -128,12 +127,12 @@ function download () {
 
 async function compress () {
   if (!state.sel) return
-  try { const d = await api.compress(entryPath(state.sel)); refresh(); toast.show('Archive créée : ' + d.name) }
+  try { const d = await api.compress(entryPath(state.sel), state.host); refresh(); toast.show('Archive créée : ' + d.name) }
   catch (ex) { toast.show(ex.message) }
 }
 async function extract () {
   if (!state.sel) return
-  try { await api.extract(entryPath(state.sel)); refresh(); toast.show('Extrait') }
+  try { await api.extract(entryPath(state.sel), state.host); refresh(); toast.show('Extrait') }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -153,16 +152,16 @@ function closeCtx () {
   document.removeEventListener('click', closeCtx)
   document.removeEventListener('contextmenu', closeCtx)
 }
-function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy' }); toast.show('Copié') }
-function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut' }); toast.show('Coupé') }
+function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); toast.show('Copié') }
+function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); toast.show('Coupé') }
 async function paste () {
-  if (roGuard()) return
   const c = windows.clip
   if (!c) return
+  if ((c.host || null) !== (state.host || null)) { toast.show('Copier/coller entre hôtes différents : pas encore supporté'); return }
   const dest = join(state.path, c.name)
   try {
-    if (c.mode === 'copy') await api.copy(c.path, dest)
-    else { await api.rename(c.path, dest); windows.setClip(null) }
+    if (c.mode === 'copy') await api.copy(c.path, dest, state.host)
+    else { await api.rename(c.path, dest, state.host); windows.setClip(null) }
     refresh(); toast.show('Collé')
   } catch (ex) { toast.show(ex.message) }
 }
@@ -170,7 +169,7 @@ function properties (e) { windows.open('props', { path: entryPath(e), title: 'In
 
 async function uploadFiles (files, destDir) {
   for (const f of files) {
-    try { const d = await api.upload(f, destDir); toast.show('Importé : ' + d.name) }
+    try { const d = await api.upload(f, destDir, state.host); toast.show('Importé : ' + d.name) }
     catch (ex) { toast.show(ex.message) }
   }
 }
@@ -191,7 +190,6 @@ function onCellDragLeave (e) {
   if (dropTarget.value === e.name) dropTarget.value = null
 }
 async function onCellDrop (ev, e) {
-  if (state.host) return
   if (e.type !== 'dir') return
   ev.preventDefault()
   ev.stopPropagation()
@@ -205,8 +203,8 @@ async function onCellDrop (ev, e) {
   const src = ev.dataTransfer.getData('application/x-hublo')
   if (!src || src === e.name) return
   try {
-    await api.rename(join(state.path, src), join(folder, src))
-    load(state.path, false)
+    await api.rename(join(state.path, src), join(folder, src), state.host)
+    refresh()
     toast.show('Déplacé → ' + e.name)
   } catch (ex) { toast.show(ex.message) }
 }
@@ -219,7 +217,6 @@ function onGridDragLeave (ev) {
 }
 async function onGridDrop (ev) {
   state.gridDrop = false
-  if (state.host) return
   if (!ev.dataTransfer.files.length) return
   ev.preventDefault()
   await uploadFiles(ev.dataTransfer.files, state.path)
@@ -256,14 +253,14 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
       <button class="fbtn" title="Aller au dossier…" @click="goPath">📂 Aller à…</button>
       <span class="fspace"></span>
-      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput" :disabled="isRemote">
-      <button class="fbtn" title="Importer des fichiers" :disabled="isRemote" @click="importClick">⬆ Importer</button>
+      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput">
+      <button class="fbtn" title="Importer des fichiers" @click="importClick">⬆ Importer</button>
       <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">⬇ Télécharger</button>
-      <button class="fbtn" :disabled="isRemote" @click="mkdir">Nouveau dossier</button>
-      <button class="fbtn" :disabled="!state.sel || isRemote" @click="rename">Renommer</button>
-      <button class="fbtn" :disabled="!state.sel || isRemote" @click="remove">Supprimer</button>
-      <button class="fbtn" :disabled="!state.sel || isRemote" @click="compress" title="Compresser en .tar.gz">Compresser</button>
-      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" :disabled="isRemote" @click="extract">Extraire</button>
+      <button class="fbtn" @click="mkdir">Nouveau dossier</button>
+      <button class="fbtn" :disabled="!state.sel" @click="rename">Renommer</button>
+      <button class="fbtn" :disabled="!state.sel" @click="remove">Supprimer</button>
+      <button class="fbtn" :disabled="!state.sel" @click="compress" title="Compresser en .tar.gz">Compresser</button>
+      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">Extraire</button>
     </div>
     <div
       class="grid"
@@ -301,26 +298,23 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <template v-if="ctx.e">
         <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
         <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
-        <template v-if="!isRemote">
-          <div class="ctx-sep"></div>
-          <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
-          <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
-          <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
-          <div class="ctx-sep"></div>
-          <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
-          <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
-          <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
-          <div class="ctx-sep"></div>
-          <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
-        </template>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
+        <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
+        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
+        <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
+        <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" @click="properties(ctx.e); closeCtx()">Propriétés…</div>
       </template>
       <template v-else>
-        <div v-if="!isRemote" class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
-        <div v-if="!isRemote" class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
-        <div v-if="windows.clip && !isRemote" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
-        <div v-if="isRemote" class="ctx-item dim">Lecteur réseau — lecture seule</div>
+        <div class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
+        <div class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
+        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
       </template>
     </div>
     </Teleport>
