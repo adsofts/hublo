@@ -10,6 +10,7 @@ const APP_META = {
   preview: { title: 'Aperçu', w: 560, h: 440 },
   sysinfo: { title: 'Infos système', w: 380, h: 470 },
   trash: { title: 'Corbeille', w: 520, h: 400 },
+  props: { title: 'Infos', w: 360, h: 480 },
   about: { title: 'À propos de Hublo', w: 380, h: 300 }
 }
 
