@@ -648,6 +648,33 @@ app.get('/ws/terminal', { websocket: true }, (socket, req) => {
   })
 })
 
+// ---------- LOGS (suivi tail -F / journalctl -f en direct) ----------
+app.get('/ws/logtail', { websocket: true }, async (socket, req) => {
+  const ws = socket.socket || socket
+  const s = getSession(req)
+  if (!s) { try { ws.close(4001) } catch {} ; return }
+  let t
+  try { t = await resolveTarget(s, req.query.host) } catch (e) { try { ws.send('[hublo] hôte injoignable\n'); ws.close() } catch {} ; return }
+  const source = req.query.source
+  const path = safePath(req.query.path || '')
+  let inner
+  if (source === 'journal-user') inner = 'journalctl --user -n 300 -f --no-pager 2>&1'
+  else if (source === 'journal-system') inner = 'journalctl -n 300 -f --no-pager 2>&1'
+  else if (path) inner = 'tail -n 300 -F -- "$1" 2>&1'
+  else { try { ws.send('[hublo] aucune source de log\n'); ws.close() } catch {} ; return }
+  // le `cat >/dev/null` lit stdin : à la fermeture du WS on envoie EOF → cat sort → kill du tail/journalctl (pas d'orphelin)
+  const script = `${inner} & P=$!; cat >/dev/null; kill $P 2>/dev/null`
+  const cmd = `sh -c ${shq(script)} _ ${shq(path || '/dev/null')}`
+  audit(req, s.username, 'logtail', source || path)
+  t.conn.exec(cmd, (err, stream) => {
+    if (err) { try { ws.send('[hublo] ' + err.message); ws.close() } catch {} ; return }
+    stream.on('data', d => { try { ws.send(d.toString()) } catch {} })
+    stream.stderr && stream.stderr.on('data', d => { try { ws.send(d.toString()) } catch {} })
+    stream.on('close', () => { try { ws.close() } catch {} })
+    ws.on('close', () => { try { stream.end() } catch {} })
+  })
+})
+
 // ---------- balayage des sessions inactives ----------
 setInterval(() => {
   const now = Date.now()

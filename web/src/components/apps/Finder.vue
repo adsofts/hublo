@@ -172,6 +172,7 @@ async function paste () {
   } catch (ex) { toast.show(ex.message) }
 }
 function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name, host: state.host }) }
+function tailLogs (e) { windows.open('logs', { path: entryPath(e), host: state.host }) }
 
 async function uploadFiles (files, destDir) {
   for (const f of files) {
@@ -310,6 +311,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <template v-if="ctx.e">
         <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
         <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
+        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="tailLogs(ctx.e); closeCtx()">Suivre les logs</div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
         <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
