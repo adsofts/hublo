@@ -11,6 +11,7 @@ const APP_META = {
   sysinfo: { title: 'Infos système', w: 380, h: 470 },
   trash: { title: 'Corbeille', w: 520, h: 400 },
   network: { title: 'Lecteurs réseau', w: 580, h: 500 },
+  logs: { title: 'Logs', w: 720, h: 460 },
   props: { title: 'Infos', w: 360, h: 480 },
   about: { title: 'À propos de Hublo', w: 380, h: 300 }
 }
