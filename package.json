@@ -2,11 +2,12 @@
   "name": "hublo",
   "version": "0.1.0",
   "private": true,
-  "description": "Hublo — bureau macOS web pour agir dans son espace sur un serveur Linux (POC).",
+  "description": "Hublo — a macOS-style web desktop to manage your space on a Linux server, over SSH.",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "npm --prefix web install && npm --prefix web run build && rm -rf public && cp -r web/dist public"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
