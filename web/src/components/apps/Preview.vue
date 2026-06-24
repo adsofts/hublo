@@ -7,7 +7,7 @@ import { useWindowsStore } from '../../stores/windows.js'
 const windows = useWindowsStore()
 const win = computed(() => windows.byApp('preview'))
 const path = computed(() => win.value?.path || '')
-const src = computed(() => path.value ? api.rawUrl(path.value) : '')
+const src = computed(() => path.value ? api.rawUrl(path.value, win.value?.host) : '')
 const pdf = computed(() => path.value && isPdf(path.value))
 </script>
 

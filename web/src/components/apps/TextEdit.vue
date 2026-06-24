@@ -38,7 +38,7 @@ async function openPath (path) {
   }
   status.value = 'chargement…'
   try {
-    const d = await api.read(path)
+    const d = await api.read(path, win.value?.host)
     editor.setValue(d.content)
     monaco.editor.setModelLanguage(editor.getModel(), langFor(path))
     status.value = fmtSize(d.size)
@@ -54,6 +54,7 @@ async function openPath (path) {
 }
 
 async function save () {
+  if (win.value?.host) { toast.show('Lecture seule (lecteur réseau)'); return }
   let path = curPath.value
   if (!path) {
     path = prompt('Chemin du fichier à enregistrer :', (auth.home || '') + '/sans-titre.txt')
@@ -80,6 +81,7 @@ onMounted(async () => {
     automaticLayout: false,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
+    readOnly: !!win.value?.host,
     fontFamily: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
   })
   editor.onDidChangeModelContent(() => {
@@ -101,6 +103,7 @@ onBeforeUnmount(() => {
 
 // recharge si on rouvre TextEdit avec un nouveau chemin
 watch(() => win.value && win.value.path, (p, old) => {
+  if (editor) editor.updateOptions({ readOnly: !!win.value?.host })
   if (p && p !== old && p !== curPath.value) openPath(p)
 })
 </script>
@@ -109,8 +112,8 @@ watch(() => win.value && win.value.path, (p, old) => {
   <WindowFrame app="textedit" body-class="flexcol">
     <div class="te-bar">
       <span class="te-name">{{ docName }}</span>
-      <button class="fbtn" @click="save">Enregistrer</button>
-      <span class="te-status">{{ status }}</span>
+      <button class="fbtn" @click="save" :disabled="!!win?.host">Enregistrer</button>
+      <span class="te-status">{{ win?.host ? '🌐 lecture seule' : status }}</span>
     </div>
     <div ref="editorHost" class="te-editor"></div>
   </WindowFrame>

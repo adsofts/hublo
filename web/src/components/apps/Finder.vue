@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import WindowFrame from '../WindowFrame.vue'
 import { api, join, icoFor, isImage, isPdf, isArchive } from '../../api.js'
 import { useAuthStore } from '../../stores/auth.js'
@@ -18,16 +18,26 @@ const state = reactive({
   hist: [],
   gridDrop: false,
   query: '',
-  searching: false
+  searching: false,
+  host: null,        // null = local, sinon id de lecteur réseau
+  hostLabel: ''
 })
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
 const clipboard = ref(null)  // { path, name, mode: 'copy' | 'cut' }
 const ctx = reactive({ show: false, x: 0, y: 0, e: null })
 
+// ---- lecteurs réseau ----
+const drives = ref([])
+const isRemote = computed(() => !!state.host)
+async function loadDrives () { try { drives.value = (await api.hostsList()).hosts } catch { /* ignore */ } }
+function goLocal () { state.host = null; state.hostLabel = ''; state.hist = []; state.query = ''; state.searching = false; load(null, false) }
+function goHost (d) { state.host = d.id; state.hostLabel = d.label || d.host; state.hist = []; state.query = ''; state.searching = false; load(null, false) }
+function roGuard () { if (state.host) { toast.show('Lecture seule sur un lecteur réseau (écriture distante à venir)'); return true } return false }
+
 async function load (p, push = true) {
   try {
-    const d = await api.list(p)
+    const d = await api.list(p, state.host)
     if (push && state.path && state.path !== d.path) state.hist.push(state.path)
     state.path = d.path
     state.parent = d.parent
@@ -65,8 +75,8 @@ function refresh () { if (state.searching) doSearch(state.query); else load(stat
 function dblclick (e) {
   const full = entryPath(e)
   if (e.type === 'dir') { state.query = ''; state.searching = false; load(full) }
-  else if (isImage(e.name) || isPdf(e.name)) windows.open('preview', { path: full, title: e.name })
-  else windows.open('textedit', { path: full })
+  else if (isImage(e.name) || isPdf(e.name)) windows.open('preview', { path: full, title: e.name, host: state.host })
+  else windows.open('textedit', { path: full, host: state.host })
 }
 
 function goUp () { if (state.parent) load(state.parent) }
@@ -107,7 +117,7 @@ async function onUpload (ev) {
 function download () {
   if (!state.sel || state.sel.type === 'dir') return
   const a = document.createElement('a')
-  a.href = api.downloadUrl(entryPath(state.sel))
+  a.href = api.downloadUrl(entryPath(state.sel), state.host)
   a.download = state.sel.name
   document.body.appendChild(a)
   a.click()
@@ -144,6 +154,7 @@ function closeCtx () {
 function copyItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'copy' }; toast.show('Copié') }
 function cutItem (e) { clipboard.value = { path: entryPath(e), name: e.name, mode: 'cut' }; toast.show('Coupé') }
 async function paste () {
+  if (roGuard()) return
   if (!clipboard.value) return
   const dest = join(state.path, clipboard.value.name)
   try {
@@ -152,7 +163,7 @@ async function paste () {
     refresh(); toast.show('Collé')
   } catch (ex) { toast.show(ex.message) }
 }
-function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name }) }
+function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name, host: state.host }) }
 
 async function uploadFiles (files, destDir) {
   for (const f of files) {
@@ -177,6 +188,7 @@ function onCellDragLeave (e) {
   if (dropTarget.value === e.name) dropTarget.value = null
 }
 async function onCellDrop (ev, e) {
+  if (state.host) return
   if (e.type !== 'dir') return
   ev.preventDefault()
   ev.stopPropagation()
@@ -204,6 +216,7 @@ function onGridDragLeave (ev) {
 }
 async function onGridDrop (ev) {
   state.gridDrop = false
+  if (state.host) return
   if (!ev.dataTransfer.files.length) return
   ev.preventDefault()
   await uploadFiles(ev.dataTransfer.files, state.path)
@@ -212,23 +225,32 @@ async function onGridDrop (ev) {
 
 // chargement initial
 load(state.path, false)
+loadDrives()
 </script>
 
 <template>
-  <WindowFrame app="finder" body-class="flexcol">
+  <WindowFrame app="finder" body-class="finder-body">
+    <div class="finder-side">
+      <div class="side-sec">Emplacements</div>
+      <div class="side-item" :class="{ active: !state.host }" @click="goLocal"><span>🖥️</span> Cet ordinateur</div>
+      <div class="side-sec">Lecteurs réseau</div>
+      <div v-for="d in drives" :key="d.id" class="side-item" :class="{ active: state.host === d.id }" :title="d.user + '@' + d.host" @click="goHost(d)"><span>🌐</span> {{ d.label || d.host }}</div>
+      <div class="side-item dim" @click="windows.open('network')"><span>＋</span> Gérer…</div>
+    </div>
+    <div class="finder-main">
     <div class="finder-bar">
       <button class="fbtn" title="Précédent" :disabled="!state.hist.length" @click="goBack">‹</button>
       <button class="fbtn" title="Dossier parent" :disabled="!state.parent" @click="goUp">↑</button>
       <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
-      <span class="fpath">{{ state.path }}</span>
-      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput">
-      <button class="fbtn" title="Importer des fichiers" @click="importClick">⬆ Importer</button>
+      <span class="fpath">{{ isRemote ? '🌐 ' + state.hostLabel + ' · ' : '' }}{{ state.path }}</span>
+      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput" :disabled="isRemote">
+      <button class="fbtn" title="Importer des fichiers" :disabled="isRemote" @click="importClick">⬆ Importer</button>
       <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">⬇ Télécharger</button>
-      <button class="fbtn" @click="mkdir">Nouveau dossier</button>
-      <button class="fbtn" :disabled="!state.sel" @click="rename">Renommer</button>
-      <button class="fbtn" :disabled="!state.sel" @click="remove">Supprimer</button>
-      <button class="fbtn" :disabled="!state.sel" @click="compress" title="Compresser en .tar.gz">Compresser</button>
-      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">Extraire</button>
+      <button class="fbtn" :disabled="isRemote" @click="mkdir">Nouveau dossier</button>
+      <button class="fbtn" :disabled="!state.sel || isRemote" @click="rename">Renommer</button>
+      <button class="fbtn" :disabled="!state.sel || isRemote" @click="remove">Supprimer</button>
+      <button class="fbtn" :disabled="!state.sel || isRemote" @click="compress" title="Compresser en .tar.gz">Compresser</button>
+      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" :disabled="isRemote" @click="extract">Extraire</button>
     </div>
     <div
       class="grid"
@@ -259,29 +281,33 @@ load(state.path, false)
       </div>
     </div>
     <input ref="uplInput" type="file" multiple style="display:none" @change="onUpload">
+    </div>
 
     <Teleport to="body">
     <div v-if="ctx.show" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <template v-if="ctx.e">
         <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
         <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
-        <div class="ctx-sep"></div>
-        <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
-        <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
-        <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
-        <div class="ctx-sep"></div>
-        <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
-        <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
-        <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
-        <div class="ctx-sep"></div>
-        <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
+        <template v-if="!isRemote">
+          <div class="ctx-sep"></div>
+          <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
+          <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
+          <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+          <div class="ctx-sep"></div>
+          <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
+          <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
+          <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
+          <div class="ctx-sep"></div>
+          <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
+        </template>
         <div class="ctx-sep"></div>
         <div class="ctx-item" @click="properties(ctx.e); closeCtx()">Propriétés…</div>
       </template>
       <template v-else>
-        <div class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
-        <div class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
-        <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div v-if="!isRemote" class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
+        <div v-if="!isRemote" class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
+        <div v-if="clipboard && !isRemote" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div v-if="isRemote" class="ctx-item dim">Lecteur réseau — lecture seule</div>
       </template>
     </div>
     </Teleport>

@@ -7,7 +7,8 @@ const items = [
   { app: 'finder', ico: '🗂️', title: 'Finder' },
   { app: 'textedit', ico: '📝', title: 'TextEdit' },
   { app: 'terminal', ico: '🖥️', title: 'Terminal' },
-  { app: 'monitor', ico: '📊', title: 'Moniteur d’activité' }
+  { app: 'monitor', ico: '📊', title: 'Moniteur d’activité' },
+  { app: 'network', ico: '🌐', title: 'Lecteurs réseau' }
 ]
 
 function open (app) {

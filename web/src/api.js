@@ -19,6 +19,8 @@ async function get (url) {
   return d
 }
 
+const hq = h => (h ? '&host=' + encodeURIComponent(h) : '')
+
 export const api = {
   post,
   get,
@@ -27,8 +29,13 @@ export const api = {
   login (username, password) { return post('/api/login', { username, password }) },
   logout () { return post('/api/logout') },
   // fs
-  list (path) { return get('/api/fs/list?path=' + encodeURIComponent(path)) },
-  read (path) { return get('/api/fs/read?path=' + encodeURIComponent(path)) },
+  list (path, host) {
+    const q = []
+    if (path) q.push('path=' + encodeURIComponent(path))
+    if (host) q.push('host=' + encodeURIComponent(host))
+    return get('/api/fs/list?' + q.join('&'))
+  },
+  read (path, host) { return get('/api/fs/read?path=' + encodeURIComponent(path) + hq(host)) },
   write (path, content) { return post('/api/fs/write', { path, content }) },
   mkdir (path) { return post('/api/fs/mkdir', { path }) },
   rename (from, to) { return post('/api/fs/rename', { from, to }) },
@@ -36,13 +43,17 @@ export const api = {
   ps () { return get('/api/ps') },
   sysinfo () { return get('/api/sysinfo') },
   search (path, q) { return get('/api/fs/search?path=' + encodeURIComponent(path) + '&q=' + encodeURIComponent(q)) },
-  downloadUrl (path) { return '/api/fs/download?path=' + encodeURIComponent(path) },
-  rawUrl (path) { return '/api/fs/download?path=' + encodeURIComponent(path) + '&inline=1' },
+  downloadUrl (path, host) { return '/api/fs/download?path=' + encodeURIComponent(path) + hq(host) },
+  rawUrl (path, host) { return '/api/fs/download?path=' + encodeURIComponent(path) + '&inline=1' + hq(host) },
   compress (path) { return post('/api/fs/compress', { path }) },
   extract (path) { return post('/api/fs/extract', { path }) },
   copy (from, to) { return post('/api/fs/copy', { from, to }) },
-  info (path) { return get('/api/fs/info?path=' + encodeURIComponent(path)) },
+  info (path, host) { return get('/api/fs/info?path=' + encodeURIComponent(path) + hq(host)) },
   chmod (path, mode) { return post('/api/fs/chmod', { path, mode }) },
+  hostsList () { return get('/api/hosts/list') },
+  hostSave (h) { return post('/api/hosts/save', h) },
+  hostDelete (id) { return post('/api/hosts/delete', { id }) },
+  hostTest (id) { return post('/api/hosts/test', { id }) },
   trashList () { return get('/api/trash/list') },
   trashRestore (id) { return post('/api/trash/restore', { id }) },
   trashEmpty () { return post('/api/trash/empty') },
