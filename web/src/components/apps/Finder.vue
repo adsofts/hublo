@@ -260,6 +260,7 @@ load(state.path, false)
     </div>
     <input ref="uplInput" type="file" multiple style="display:none" @change="onUpload">
 
+    <Teleport to="body">
     <div v-if="ctx.show" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <template v-if="ctx.e">
         <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
@@ -283,5 +284,6 @@ load(state.path, false)
         <div v-if="clipboard" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
       </template>
     </div>
+    </Teleport>
   </WindowFrame>
 </template>
