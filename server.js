@@ -64,7 +64,11 @@ function getSession (req) {
 }
 function closeSession (token) {
   const s = sessions.get(token)
-  if (s) { try { s.conn.end() } catch {} sessions.delete(token) }
+  if (s) {
+    if (s.remotes) for (const k in s.remotes) { try { s.remotes[k].conn.end() } catch {} }
+    try { s.conn.end() } catch {}
+    sessions.delete(token)
+  }
 }
 
 // Ouvre une connexion SSH (= authentification) en tant que `username`/`password`.
@@ -130,6 +134,55 @@ function sshRun (conn, cmd) {
 const MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif', txt: 'text/plain; charset=utf-8' }
 const mimeFor = (n) => MIME[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream'
 
+// ===== Lecteurs réseau (hôtes SSH enregistrés dans ~/.hublo) =====
+const hubloDir = (s) => posix.join(s.home, '.hublo')
+const hostsFile = (s) => posix.join(hubloDir(s), 'hosts.json')
+
+async function readHosts (s) {
+  try { const buf = await pf(s.sftp.readFile.bind(s.sftp), hostsFile(s)); return JSON.parse(buf.toString('utf8')) }
+  catch { return [] }
+}
+async function writeHosts (s, arr) {
+  await sshRun(s.conn, `mkdir -p ${shq(hubloDir(s))} && chmod 700 ${shq(hubloDir(s))}`)
+  await pf(s.sftp.writeFile.bind(s.sftp), hostsFile(s), JSON.stringify(arr, null, 2))
+}
+
+// Établit (ou réutilise) une connexion SSH+SFTP sortante vers un hôte enregistré.
+async function ensureRemote (s, hostId) {
+  if (!s.remotes) s.remotes = {}
+  if (s.remotes[hostId]) return s.remotes[hostId]
+  const h = (await readHosts(s)).find(x => x.id === hostId)
+  if (!h) throw new Error('hôte inconnu')
+  let privateKey
+  if (h.auth === 'key' && h.keyName) {
+    const buf = await pf(s.sftp.readFile.bind(s.sftp), posix.join(hubloDir(s), 'keys', h.keyName)).catch(() => null)
+    if (!buf) throw new Error('clé privée introuvable')
+    privateKey = buf
+  }
+  const { conn, sftp } = await new Promise((res, rej) => {
+    const c = new SSHClient()
+    c.on('ready', () => c.sftp((e, sf) => e ? rej(e) : res({ conn: c, sftp: sf })))
+    c.on('error', rej)
+    c.on('keyboard-interactive', (_n, _i, _l, _p, finish) => finish([h.password || '']))
+    c.connect({
+      host: h.host, port: h.port || 22, username: h.user,
+      privateKey, password: h.auth === 'password' ? h.password : undefined,
+      tryKeyboard: true, readyTimeout: 15000
+    })
+  })
+  const home = await pf(sftp.realpath.bind(sftp), '.').catch(() => '/')
+  const entry = { conn, sftp, home, label: h.label }
+  conn.on('close', () => { if (s.remotes) delete s.remotes[hostId] })
+  s.remotes[hostId] = entry
+  return entry
+}
+
+// Résout la cible d'une opération fichier : local (défaut) ou un hôte distant.
+async function resolveTarget (s, hostId) {
+  if (!hostId || hostId === 'local') return { sftp: s.sftp, conn: s.conn, home: s.home }
+  return await ensureRemote(s, hostId)
+}
+
 // ---------- AUTH ----------
 app.post('/api/login', async (req, reply) => {
   const ip = req.headers['cf-connecting-ip'] || req.ip
@@ -187,10 +240,11 @@ function requireSession (req, reply) {
 
 app.get('/api/fs/list', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
-  const path = safePath(req.query.path || s.home)
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'Connexion à l’hôte impossible : ' + e.message }) }
+  const path = safePath(req.query.path || t.home)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   try {
-    const list = await pf(s.sftp.readdir.bind(s.sftp), path)
+    const list = await pf(t.sftp.readdir.bind(t.sftp), path)
     const entries = list.map(e => {
       const t = (e.longname || '')[0]
       return {
@@ -210,12 +264,13 @@ app.get('/api/fs/list', async (req, reply) => {
 
 app.get('/api/fs/read', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'Connexion à l’hôte impossible : ' + e.message }) }
   const path = safePath(req.query.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   try {
-    const st = await pf(s.sftp.stat.bind(s.sftp), path)
+    const st = await pf(t.sftp.stat.bind(t.sftp), path)
     if (st.size > MAX_READ) return reply.code(413).send({ error: 'Fichier trop gros pour l’éditeur (> 2 Mo).' })
-    const buf = await pf(s.sftp.readFile.bind(s.sftp), path)
+    const buf = await pf(t.sftp.readFile.bind(t.sftp), path)
     return { path, content: buf.toString('utf8'), size: st.size }
   } catch (e) {
     return reply.code(400).send({ error: 'Ouverture impossible : ' + e.message })
@@ -286,13 +341,14 @@ app.post('/api/fs/upload', async (req, reply) => {
 // download : renvoie le fichier en flux (attachment)
 app.get('/api/fs/download', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.query.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   const name = posix.basename(path).replace(/["\\]/g, '')
   const inline = req.query.inline === '1'
   reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${name}"`)
   reply.header('Content-Type', inline ? mimeFor(name) : 'application/octet-stream')
-  return reply.send(s.sftp.createReadStream(path))
+  return reply.send(t.sftp.createReadStream(path))
 })
 
 // ---------- CORBEILLE ----------
@@ -376,9 +432,10 @@ app.post('/api/fs/copy', async (req, reply) => {
 // infos détaillées (stat) d'un élément
 app.get('/api/fs/info', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.query.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
-  const r = await sshRun(s.conn, `stat -c '%s|%Y|%a|%A|%U|%G|%F' -- ${shq(path)}`)
+  const r = await sshRun(t.conn, `stat -c '%s|%Y|%a|%A|%U|%G|%F' -- ${shq(path)}`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Infos indisponibles' })
   const [size, mtime, octal, perms, owner, group, ftype] = r.out.trim().split('|')
   return { name: posix.basename(path), path, size: Number(size), mtime: Number(mtime) * 1000, octal, perms, owner, group, ftype }
@@ -394,6 +451,64 @@ app.post('/api/fs/chmod', async (req, reply) => {
   if (r.code !== 0) return reply.code(400).send({ error: 'Modification des droits impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'chmod', mode + ' ' + path)
   return { ok: true }
+})
+
+// ===== Gestion des hôtes (lecteurs réseau) — stockés dans ~/.hublo =====
+app.get('/api/hosts/list', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const hosts = await readHosts(s)
+  return { hosts: hosts.map(h => ({ id: h.id, label: h.label, host: h.host, port: h.port, user: h.user, auth: h.auth })) }
+})
+
+app.post('/api/hosts/save', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const b = req.body || {}
+  const host = String(b.host || '').trim()
+  const user = String(b.user || '').trim()
+  const port = Number(b.port) || 22
+  const auth = b.auth === 'password' ? 'password' : 'key'
+  const label = String(b.label || host).trim()
+  if (!host || !user) return reply.code(400).send({ error: 'Hôte et utilisateur requis.' })
+  const hosts = await readHosts(s)
+  let entry = (b.id && hosts.find(h => h.id === b.id)) || null
+  if (!entry) { entry = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }; hosts.push(entry) }
+  Object.assign(entry, { label, host, port, user, auth })
+  if (auth === 'password') {
+    if (b.password != null) entry.password = String(b.password)
+    if (entry.keyName) { await sshRun(s.conn, `rm -f ${shq(posix.join(hubloDir(s), 'keys', entry.keyName))}`); delete entry.keyName }
+  } else {
+    if (b.privateKey) {
+      const keyName = entry.id + '.key'
+      const kdir = posix.join(hubloDir(s), 'keys')
+      await sshRun(s.conn, `mkdir -p ${shq(kdir)} && chmod 700 ${shq(kdir)}`)
+      await pf(s.sftp.writeFile.bind(s.sftp), posix.join(kdir, keyName), String(b.privateKey))
+      await sshRun(s.conn, `chmod 600 ${shq(posix.join(kdir, keyName))}`)
+      entry.keyName = keyName
+    }
+    delete entry.password
+  }
+  await writeHosts(s, hosts)
+  if (s.remotes && s.remotes[entry.id]) { try { s.remotes[entry.id].conn.end() } catch {} delete s.remotes[entry.id] }
+  audit(req, s.username, 'host-save', entry.id + ' ' + user + '@' + host)
+  return { ok: true, id: entry.id }
+})
+
+app.post('/api/hosts/delete', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  const hosts = await readHosts(s)
+  const entry = hosts.find(h => h.id === id)
+  if (entry?.keyName) await sshRun(s.conn, `rm -f ${shq(posix.join(hubloDir(s), 'keys', entry.keyName))}`)
+  await writeHosts(s, hosts.filter(h => h.id !== id))
+  if (s.remotes && s.remotes[id]) { try { s.remotes[id].conn.end() } catch {} delete s.remotes[id] }
+  audit(req, s.username, 'host-delete', id)
+  return { ok: true }
+})
+
+app.post('/api/hosts/test', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  try { const r = await ensureRemote(s, String(req.body?.id || '')); return { ok: true, home: r.home } }
+  catch (e) { return reply.code(400).send({ error: e.message }) }
 })
 
 // ---------- PROCESS (exec d'une commande EN DUR) ----------

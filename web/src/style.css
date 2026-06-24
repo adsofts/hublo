@@ -177,6 +177,38 @@ body{
 .pp-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
 .pp-oct{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
 
+/* Finder multi-hôtes : barre latérale */
+.win-body.finder-body{display:flex;flex-direction:row;overflow:hidden}
+.finder-side{width:162px;flex:0 0 162px;background:#f0f0f3;border-right:1px solid #e2e2e2;overflow:auto;padding:8px 6px}
+.finder-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.side-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#9a9aa0;padding:9px 8px 3px}
+.side-item{display:flex;align-items:center;gap:7px;font-size:13px;padding:6px 8px;border-radius:7px;cursor:pointer;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-item>span{font-size:15px;flex:0 0 auto}
+.side-item:hover{background:#e4e4e8}
+.side-item.active{background:var(--accent);color:#fff}
+.side-item.dim{color:#9a9aa0}
+
+/* App Lecteurs réseau */
+.net{display:flex;flex-direction:column;height:100%;overflow:auto;padding:14px 16px;gap:14px}
+.net-title{font-size:13px;font-weight:600;margin-bottom:8px}
+.net-empty{color:var(--muted);font-size:13px;padding:6px 0}
+.net-row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #ececec;border-radius:9px;margin-bottom:6px}
+.net-ic{font-size:22px}
+.net-info{flex:1;min-width:0}
+.net-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.net-sub{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.net-form{border-top:1px solid #ececec;padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.net-form label{display:flex;flex-direction:column;font-size:12px;color:#666;gap:3px}
+.net-form input,.net-form select,.net-form textarea{font-family:inherit;font-size:13px;color:#1d1d1f;border:1px solid #e2e2e2;border-radius:7px;padding:6px 9px;outline:none;background:#fff}
+.net-form input:focus,.net-form select:focus,.net-form textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,132,255,.15)}
+.net-form textarea{resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.net-2{display:flex;gap:8px}
+.net-2 .grow{flex:1}
+.net-2 .port{width:84px}
+.net-actions{display:flex;gap:8px;margin-top:4px}
+.fbtn.primary{background:var(--accent);color:#fff}
+.fbtn.primary:hover{filter:brightness(1.08)}
+
 /* petit toast */
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.8);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
