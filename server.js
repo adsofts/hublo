@@ -42,7 +42,15 @@ const app = Fastify({ bodyLimit: 5 * 1024 * 1024 })
 await app.register(fastifyCookie)
 await app.register(fastifyWebsocket)
 await app.register(fastifyMultipart, { limits: { fileSize: 100 * 1024 * 1024 } })
-await app.register(fastifyStatic, { root: join(__dirname, 'public'), prefix: '/' })
+await app.register(fastifyStatic, {
+  root: join(__dirname, 'public'),
+  prefix: '/',
+  setHeaders (res, p) {
+    // index.html toujours revalidé ; assets hashés cachés longtemps
+    if (p.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache')
+    else if (p.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  }
+})
 
 function newToken () { return randomBytes(24).toString('hex') }
 function getSession (req) {

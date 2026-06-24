@@ -89,6 +89,8 @@ body{
 .titlebar .title{font-size:13px;font-weight:600;color:#3a3a3c;flex:1;text-align:center;margin-right:54px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .win-body{flex:1;overflow:auto;position:relative;background:#fff}
+.win-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;
+  background:linear-gradient(135deg,transparent 0 48%,rgba(0,0,0,.22) 48% 56%,transparent 56% 66%,rgba(0,0,0,.22) 66% 74%,transparent 74%)}
 .win-body.flexcol{display:flex;flex-direction:column}
 
 /* Finder */

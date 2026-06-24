@@ -43,6 +43,22 @@ function startDrag (e) {
   document.addEventListener('mousemove', mv)
   document.addEventListener('mouseup', up)
 }
+
+function startResize (e) {
+  e.stopPropagation()
+  e.preventDefault()
+  const w = win.value
+  const sx = e.clientX, sy = e.clientY, sw = w.w, sh = w.h
+  const mv = ev => windows.resize(props.app, sw + (ev.clientX - sx), sh + (ev.clientY - sy))
+  const up = () => {
+    document.removeEventListener('mousemove', mv)
+    document.removeEventListener('mouseup', up)
+    document.body.style.userSelect = ''
+  }
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', mv)
+  document.addEventListener('mouseup', up)
+}
 </script>
 
 <template>
@@ -64,5 +80,6 @@ function startDrag (e) {
     <div class="win-body" :class="bodyClass">
       <slot :win="win" />
     </div>
+    <div class="win-resize" title="Redimensionner" @mousedown="startResize"></div>
   </div>
 </template>

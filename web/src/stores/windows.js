@@ -110,8 +110,16 @@ export const useWindowsStore = defineStore('windows', () => {
     w.y = Math.max(menuH, y)
   }
 
+  function resize (app, w, h) {
+    const win = byApp(app)
+    if (!win) return
+    win.w = Math.max(320, Math.round(w))
+    win.h = Math.max(170, Math.round(h))
+    win.zoom = false   // une fois redimensionnée à la main, ce n'est plus « plein écran »
+  }
+
   return {
     wins, activeApp, running,
-    byApp, open, close, focus, minimize, toggleZoom, setTitle, move
+    byApp, open, close, focus, minimize, toggleZoom, setTitle, move, resize
   }
 })
