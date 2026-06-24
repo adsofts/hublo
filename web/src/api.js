@@ -48,15 +48,16 @@ export const api = {
   compress (path, host) { return post('/api/fs/compress', { path, host }) },
   extract (path, host) { return post('/api/fs/extract', { path, host }) },
   copy (from, to, host) { return post('/api/fs/copy', { from, to, host }) },
+  transfer (fromHost, fromPath, toHost, toDir, mode) { return post('/api/fs/transfer', { fromHost, fromPath, toHost, toDir, mode }) },
   info (path, host) { return get('/api/fs/info?path=' + encodeURIComponent(path) + hq(host)) },
   chmod (path, mode, host) { return post('/api/fs/chmod', { path, mode, host }) },
   hostsList () { return get('/api/hosts/list') },
   hostSave (h) { return post('/api/hosts/save', h) },
   hostDelete (id) { return post('/api/hosts/delete', { id }) },
   hostTest (id) { return post('/api/hosts/test', { id }) },
-  trashList () { return get('/api/trash/list') },
-  trashRestore (id) { return post('/api/trash/restore', { id }) },
-  trashEmpty () { return post('/api/trash/empty') },
+  trashList (host) { return get('/api/trash/list' + (host ? '?host=' + encodeURIComponent(host) : '')) },
+  trashRestore (id, host) { return post('/api/trash/restore', { id, host }) },
+  trashEmpty (host) { return post('/api/trash/empty', { host }) },
   async upload (file, destDir, host) {
     const fd = new FormData()
     fd.append('file', file)

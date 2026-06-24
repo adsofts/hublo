@@ -134,6 +134,25 @@ function sshRun (conn, cmd) {
 const MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif', txt: 'text/plain; charset=utf-8' }
 const mimeFor = (n) => MIME[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream'
 
+// ----- transfert inter-hôtes (stream SFTP source -> SFTP destination, récursif) -----
+function transferFile (srcSftp, srcPath, dstSftp, dstPath) {
+  return new Promise((res, rej) => {
+    const rs = srcSftp.createReadStream(srcPath)
+    const ws = dstSftp.createWriteStream(dstPath)
+    rs.on('error', rej); ws.on('error', rej); ws.on('close', res)
+    rs.pipe(ws)
+  })
+}
+async function transferDir (srcSftp, srcPath, dstSftp, dstPath) {
+  await pf(dstSftp.mkdir.bind(dstSftp), dstPath).catch(() => {})
+  const list = await pf(srcSftp.readdir.bind(srcSftp), srcPath)
+  for (const e of list) {
+    const sp = posix.join(srcPath, e.filename), dp = posix.join(dstPath, e.filename)
+    if ((e.longname || '')[0] === 'd') await transferDir(srcSftp, sp, dstSftp, dp)
+    else await transferFile(srcSftp, sp, dstSftp, dp)
+  }
+}
+
 // ===== Lecteurs réseau (hôtes SSH enregistrés dans ~/.hublo) =====
 const hubloDir = (s) => posix.join(s.home, '.hublo')
 const hostsFile = (s) => posix.join(hubloDir(s), 'hosts.json')
@@ -359,9 +378,10 @@ app.get('/api/fs/download', async (req, reply) => {
 // ---------- CORBEILLE ----------
 app.get('/api/trash/list', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
-  const base = posix.join(s.home, '.hublo-trash')
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const base = posix.join(t.home, '.hublo-trash')
   const cmd = `for d in ${shq(base)}/*/; do [ -d "$d" ] || continue; id=$(basename "$d"); orig=$(cat "$d/.origpath" 2>/dev/null); item=$(ls -A "$d" | grep -vx '.origpath' | head -1); printf '%s\\t%s\\t%s\\n' "$id" "$orig" "$item"; done`
-  const out = await sshExec(s.conn, cmd)
+  const out = await sshExec(t.conn, cmd)
   const items = out.trim().split('\n').filter(Boolean).map(l => {
     const p = l.split('\t')
     return { id: p[0], orig: p[1] || '', name: p[2] || '' }
@@ -371,11 +391,12 @@ app.get('/api/trash/list', async (req, reply) => {
 
 app.post('/api/trash/restore', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const id = String(req.body?.id || '')
   if (!/^[a-z0-9]+$/.test(id)) return reply.code(400).send({ error: 'id invalide' })
-  const d = posix.join(s.home, '.hublo-trash', id)
+  const d = posix.join(t.home, '.hublo-trash', id)
   const cmd = `d=${shq(d)}; orig=$(cat "$d/.origpath" 2>/dev/null); [ -z "$orig" ] && exit 3; item=$(ls -A "$d" | grep -vx '.origpath' | head -1); [ -z "$item" ] && exit 4; target="$orig"; [ -e "$target" ] && target="$orig-restauré-$(date +%s)"; mv -- "$d/$item" "$target" && rm -rf "$d" && printf '%s' "$target"`
-  const r = await sshRun(s.conn, cmd)
+  const r = await sshRun(t.conn, cmd)
   if (r.code !== 0) return reply.code(400).send({ error: 'Restauration impossible' })
   audit(req, s.username, 'restore', r.out)
   return { ok: true, path: r.out }
@@ -383,8 +404,9 @@ app.post('/api/trash/restore', async (req, reply) => {
 
 app.post('/api/trash/empty', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
-  const base = posix.join(s.home, '.hublo-trash')
-  const r = await sshRun(s.conn, `rm -rf ${shq(base)} && mkdir -p ${shq(base)}`)
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const base = posix.join(t.home, '.hublo-trash')
+  const r = await sshRun(t.conn, `rm -rf ${shq(base)} && mkdir -p ${shq(base)}`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Vidage impossible' })
   audit(req, s.username, 'trash-empty', '')
   return { ok: true }
@@ -435,6 +457,33 @@ app.post('/api/fs/copy', async (req, reply) => {
   if (r.code !== 0) return reply.code(400).send({ error: 'Copie impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'copy', from + ' → ' + r.out)
   return { ok: true, path: r.out }
+})
+
+// transfert inter-hôtes (copie ou déplacement entre serveurs)
+app.post('/api/fs/transfer', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const b = req.body || {}
+  const fromPath = safePath(b.fromPath), toDir = safePath(b.toDir)
+  const mode = b.mode === 'move' ? 'move' : 'copy'
+  if (!fromPath || !toDir) return reply.code(400).send({ error: 'chemin invalide' })
+  let src, dst
+  try { src = await resolveTarget(s, b.fromHost); dst = await resolveTarget(s, b.toHost) }
+  catch (e) { return reply.code(502).send({ error: 'hôte injoignable : ' + e.message }) }
+  try {
+    const st = await pf(src.sftp.stat.bind(src.sftp), fromPath)
+    let destPath = posix.join(toDir, posix.basename(fromPath))
+    const exists = await pf(dst.sftp.stat.bind(dst.sftp), destPath).then(() => true).catch(() => false)
+    if (exists) destPath = destPath + '-' + Date.now().toString(36)
+    if (st.isDirectory()) await transferDir(src.sftp, fromPath, dst.sftp, destPath)
+    else await transferFile(src.sftp, fromPath, dst.sftp, destPath)
+    if (mode === 'move') {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+      const trash = posix.join(src.home, '.hublo-trash', id)
+      await sshRun(src.conn, `mkdir -p ${shq(trash)} && printf '%s' ${shq(fromPath)} > ${shq(trash + '/.origpath')} && mv -- ${shq(fromPath)} ${shq(trash + '/')}`)
+    }
+    audit(req, s.username, 'transfer', `${b.fromHost || 'local'}:${fromPath} -> ${b.toHost || 'local'}:${destPath} (${mode})`)
+    return { ok: true, name: posix.basename(destPath) }
+  } catch (e) { return reply.code(400).send({ error: 'Transfert impossible : ' + e.message }) }
 })
 
 // infos détaillées (stat) d'un élément
