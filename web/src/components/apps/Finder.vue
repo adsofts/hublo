@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import WindowFrame from '../WindowFrame.vue'
 import { api, join, icoFor, isImage, isPdf, isArchive } from '../../api.js'
 import { useAuthStore } from '../../stores/auth.js'
@@ -223,9 +223,18 @@ async function onGridDrop (ev) {
   load(state.path, false)
 }
 
-// chargement initial
-load(state.path, false)
+// chargement initial — honore un éventuel hôte demandé depuis le bureau
 loadDrives()
+const finderWin = computed(() => windows.byApp('finder'))
+if (finderWin.value?.gotoHost) { state.host = finderWin.value.gotoHost; load(null, false) }
+else load(state.path, false)
+watch(() => finderWin.value?.gotoHost, (hid, old) => {
+  if (hid === old || hid === undefined) return
+  if (!hid) { goLocal(); return }
+  const d = drives.value.find(x => x.id === hid)
+  state.host = hid; state.hostLabel = d ? (d.label || d.host) : ''
+  state.hist = []; state.query = ''; state.searching = false; load(null, false)
+})
 </script>
 
 <template>
