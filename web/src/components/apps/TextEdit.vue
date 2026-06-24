@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { monaco, langFor } from '../../monaco-env.js'
 import { api, baseName, fmtSize } from '../../api.js'
@@ -7,6 +8,7 @@ import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const windows = useWindowsStore()
 const toast = useToastStore()
@@ -22,7 +24,7 @@ const curPath = ref(null)
 const dirty = ref(false)
 const status = ref('')
 
-const docName = computed(() => curPath.value || 'Nouveau document')
+const docName = computed(() => curPath.value || t('textedit.newDocument'))
 
 function setTitle (t) { windows.setTitle(tp.winId, t) }
 
@@ -37,7 +39,7 @@ async function openPath (path) {
     setTitle('TextEdit')
     return
   }
-  status.value = 'chargement…'
+  status.value = t('textedit.loading')
   try {
     const d = await api.read(path, win.value?.host)
     editor.setValue(d.content)
@@ -57,7 +59,7 @@ async function openPath (path) {
 async function save () {
   let path = curPath.value
   if (!path) {
-    path = prompt('Chemin du fichier à enregistrer :', (auth.home || '') + '/sans-titre.txt')
+    path = prompt(t('textedit.savePrompt'), (auth.home || '') + t('textedit.untitled'))
     if (!path) return
     curPath.value = path
     monaco.editor.setModelLanguage(editor.getModel(), langFor(path))
@@ -65,9 +67,9 @@ async function save () {
   }
   try {
     await api.write(path, editor.getValue(), win.value?.host)
-    status.value = 'enregistré ✓'
+    status.value = t('textedit.savedCheck')
     dirty.value = false
-    toast.show('Enregistré')
+    toast.show(t('textedit.saved'))
   } catch (ex) { toast.show(ex.message) }
 }
 
@@ -84,7 +86,7 @@ onMounted(async () => {
     fontFamily: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
   })
   editor.onDidChangeModelContent(() => {
-    if (curPath.value) { dirty.value = true; status.value = '• modifié' }
+    if (curPath.value) { dirty.value = true; status.value = t('textedit.modified') }
   })
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => save())
 
@@ -110,7 +112,7 @@ watch(() => win.value && win.value.path, (p, old) => {
   <WindowFrame :win-id="winId" body-class="flexcol">
     <div class="te-bar">
       <span class="te-name">{{ docName }}</span>
-      <button class="fbtn" @click="save">Enregistrer</button>
+      <button class="fbtn" @click="save">{{ t('textedit.save') }}</button>
       <span class="te-status">{{ status }}</span>
     </div>
     <div ref="editorHost" class="te-editor"></div>

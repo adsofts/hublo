@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const { t } = useI18n()
 defineProps({ winId: { type: Number, required: true } })
 const toast = useToastStore()
 const rows = ref([])
@@ -26,8 +28,8 @@ onBeforeUnmount(() => clearInterval(iv))
     <table>
       <thead>
         <tr>
-          <th>PID</th><th>Utilisateur</th><th class="r">%CPU</th>
-          <th>%MEM</th><th class="r">Mém.</th><th>Process</th>
+          <th>{{ t('monitor.pid') }}</th><th>{{ t('monitor.user') }}</th><th class="r">{{ t('monitor.cpu') }}</th>
+          <th>{{ t('monitor.mem') }}</th><th class="r">{{ t('monitor.rss') }}</th><th>{{ t('monitor.process') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -39,7 +41,7 @@ onBeforeUnmount(() => clearInterval(iv))
             <span class="bar"><i :style="{ width: memPct(r.mem) + '%' }"></i></span>
             {{ r.mem }}
           </td>
-          <td class="r">{{ rssMo(r.rss) }} Mo</td>
+          <td class="r">{{ rssMo(r.rss) }} {{ t('monitor.mo') }}</td>
           <td>{{ r.comm }}</td>
         </tr>
       </tbody>

@@ -119,6 +119,18 @@ web/                 # the Vue 3 desktop (source) — `npm run build` outputs to
 public/              # built UI served by the gateway (generated; gitignored)
 ```
 
+## Translations
+
+The UI ships in **English** (default) and **French**, and is fully translatable (vue-i18n). Switch language from the **🍎 menu**; the choice is remembered (`localStorage`).
+
+To add a language:
+
+1. Copy `web/src/locales/en.js` to `web/src/locales/<code>.js` and translate the values.
+2. Register it in `web/src/i18n.js` (the `messages` map) and add an entry to the language switcher in `web/src/components/MenuBar.vue`.
+3. `npm run build`.
+
+Community translations are very welcome — PRs appreciated.
+
 ## Status
 
 Active proof of concept, evolving quickly. Issues and ideas welcome.

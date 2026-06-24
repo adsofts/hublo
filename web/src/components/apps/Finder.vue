@@ -1,11 +1,13 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api, join, icoFor, isImage, isPdf, isArchive, fmtSize } from '../../api.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const { t, locale } = useI18n()
 const wp = defineProps({ winId: { type: Number, required: true } })
 const auth = useAuthStore()
 const windows = useWindowsStore()
@@ -27,8 +29,9 @@ const state = reactive({
 function setView (v) { state.view = v; try { localStorage.setItem('hublo.finderView', v) } catch { /* */ } }
 function fmtDate (ms) {
   if (!ms) return ''
+  const tag = locale.value === 'fr' ? 'fr-FR' : 'en-US'
   const d = new Date(ms)
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(tag, { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit' })
 }
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
@@ -89,27 +92,27 @@ function dblclick (e) {
 function goUp () { if (state.parent) load(state.parent) }
 function goBack () { const p = state.hist.pop(); if (p) load(p, false) }
 function reload () { load(state.path, false) }
-function goPath () { const p = prompt('Aller au dossier :', state.path); if (p) load(p) }
+function goPath () { const p = prompt(t('finder.goToPrompt'), state.path); if (p) load(p) }
 
 async function mkdir () {
-  const n = prompt('Nom du nouveau dossier :')
+  const n = prompt(t('finder.newFolderPrompt'))
   if (!n) return
-  try { await api.mkdir(join(state.path, n), state.host); refresh(); toast.show('Dossier créé') }
+  try { await api.mkdir(join(state.path, n), state.host); refresh(); toast.show(t('finder.folderCreated')) }
   catch (ex) { toast.show(ex.message) }
 }
 
 async function rename () {
   if (!state.sel) return
-  const n = prompt('Nouveau nom :', state.sel.name)
+  const n = prompt(t('finder.renamePrompt'), state.sel.name)
   if (!n || n === state.sel.name) return
-  try { const src = entryPath(state.sel); await api.rename(src, join(dirOf(src), n), state.host); refresh(); toast.show('Renommé') }
+  try { const src = entryPath(state.sel); await api.rename(src, join(dirOf(src), n), state.host); refresh(); toast.show(t('common.renamed')) }
   catch (ex) { toast.show(ex.message) }
 }
 
 async function remove () {
   if (!state.sel) return
-  if (!confirm('Mettre « ' + state.sel.name + ' » à la corbeille ?')) return
-  try { await api.remove(entryPath(state.sel), state.host); refresh(); toast.show('Supprimé') }
+  if (!confirm(t('finder.confirmTrash', { name: state.sel.name }))) return
+  try { await api.remove(entryPath(state.sel), state.host); refresh(); toast.show(t('common.deleted')) }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -134,12 +137,12 @@ function download () {
 
 async function compress () {
   if (!state.sel) return
-  try { const d = await api.compress(entryPath(state.sel), state.host); refresh(); toast.show('Archive créée : ' + d.name) }
+  try { const d = await api.compress(entryPath(state.sel), state.host); refresh(); toast.show(t('finder.archiveCreated', { name: d.name })) }
   catch (ex) { toast.show(ex.message) }
 }
 async function extract () {
   if (!state.sel) return
-  try { await api.extract(entryPath(state.sel), state.host); refresh(); toast.show('Extrait') }
+  try { await api.extract(entryPath(state.sel), state.host); refresh(); toast.show(t('finder.extracted')) }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -159,8 +162,8 @@ function closeCtx () {
   document.removeEventListener('click', closeCtx)
   document.removeEventListener('contextmenu', closeCtx)
 }
-function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); toast.show('Copié') }
-function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); toast.show('Coupé') }
+function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); toast.show(t('common.copied')) }
+function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); toast.show(t('common.cutDone')) }
 async function paste () {
   const c = windows.clip
   if (!c) return
@@ -169,22 +172,22 @@ async function paste () {
       // transfert inter-hôtes (vrai stream serveur→serveur)
       await api.transfer(c.host || null, c.path, state.host || null, state.path, c.mode === 'cut' ? 'move' : 'copy')
       if (c.mode === 'cut') windows.setClip(null)
-      refresh(); toast.show('Transféré')
+      refresh(); toast.show(t('common.transferred'))
       return
     }
     const dest = join(state.path, c.name)
     if (c.mode === 'copy') await api.copy(c.path, dest, state.host)
     else { await api.rename(c.path, dest, state.host); windows.setClip(null) }
-    refresh(); toast.show('Collé')
+    refresh(); toast.show(t('common.pasted'))
   } catch (ex) { toast.show(ex.message) }
 }
-function properties (e) { windows.open('props', { path: entryPath(e), title: 'Infos — ' + e.name, host: state.host }) }
+function properties (e) { windows.open('props', { path: entryPath(e), title: t('finder.infoTitle', { name: e.name }), host: state.host }) }
 function tailLogs (e) { windows.open('logs', { path: entryPath(e), host: state.host }) }
 function openGit (e) { windows.open('git', { path: entryPath(e), host: state.host }) }
 
 async function uploadFiles (files, destDir) {
   for (const f of files) {
-    try { const d = await api.upload(f, destDir, state.host); toast.show('Importé : ' + d.name) }
+    try { const d = await api.upload(f, destDir, state.host); toast.show(t('finder.imported', { name: d.name })) }
     catch (ex) { toast.show(ex.message) }
   }
 }
@@ -203,7 +206,7 @@ async function moveInto (raw, destDir, okMsg) {
   try {
     if ((src.host || null) !== (state.host || null)) {
       await api.transfer(src.host || null, src.path, state.host || null, destDir, 'move')
-      refresh(); toast.show('Transféré'); return
+      refresh(); toast.show(t('common.transferred')); return
     }
     const dest = join(destDir, src.name)
     if (dest === src.path) return
@@ -228,7 +231,7 @@ async function onCellDrop (ev, e) {
   const folder = join(state.path, e.name)
   if (ev.dataTransfer.files.length) { await uploadFiles(ev.dataTransfer.files, folder); refresh(); return }
   const raw = ev.dataTransfer.getData('application/x-hublo')
-  if (raw) await moveInto(raw, folder, 'Déplacé → ' + e.name)
+  if (raw) await moveInto(raw, folder, t('finder.movedTo', { name: e.name }))
 }
 
 function onGridDragOver (ev) {
@@ -241,7 +244,7 @@ async function onGridDrop (ev) {
   state.gridDrop = false
   if (ev.dataTransfer.files.length) { ev.preventDefault(); await uploadFiles(ev.dataTransfer.files, state.path); refresh(); return }
   const raw = ev.dataTransfer.getData('application/x-hublo')
-  if (raw) { ev.preventDefault(); await moveInto(raw, state.path, 'Déplacé') }
+  if (raw) { ev.preventDefault(); await moveInto(raw, state.path, t('finder.moved')) }
 }
 
 // chargement initial — honore un éventuel hôte demandé depuis le bureau
@@ -261,29 +264,29 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
 <template>
   <WindowFrame :win-id="winId" body-class="finder-body">
     <div class="finder-side">
-      <div class="side-sec">Emplacements</div>
-      <div class="side-item" :class="{ active: !state.host }" @click="goLocal"><span>🖥️</span> Cet ordinateur</div>
-      <div class="side-sec">Lecteurs réseau</div>
+      <div class="side-sec">{{ t('finder.locations') }}</div>
+      <div class="side-item" :class="{ active: !state.host }" @click="goLocal"><span>🖥️</span> {{ t('finder.thisComputer') }}</div>
+      <div class="side-sec">{{ t('finder.networkDrives') }}</div>
       <div v-for="d in drives" :key="d.id" class="side-item" :class="{ active: state.host === d.id }" :title="d.user + '@' + d.host" @click="goHost(d)"><span>🌐</span> {{ d.label || d.host }}</div>
-      <div class="side-item dim" @click="windows.open('network')"><span>＋</span> Gérer…</div>
+      <div class="side-item dim" @click="windows.open('network')"><span>＋</span> {{ t('finder.manage') }}</div>
     </div>
     <div class="finder-main">
     <div class="finder-bar">
-      <button class="fbtn" title="Précédent" :disabled="!state.hist.length" @click="goBack">‹</button>
-      <button class="fbtn" title="Dossier parent" :disabled="!state.parent" @click="goUp">↑</button>
-      <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
-      <button class="fbtn" title="Aller au dossier…" @click="goPath">📂 Aller à…</button>
-      <button class="fbtn" :class="{ on: state.view === 'icons' }" title="Affichage icônes" @click="setView('icons')">▦</button>
-      <button class="fbtn" :class="{ on: state.view === 'list' }" title="Affichage liste" @click="setView('list')">☰</button>
+      <button class="fbtn" :title="t('finder.back')" :disabled="!state.hist.length" @click="goBack">‹</button>
+      <button class="fbtn" :title="t('finder.parentFolder')" :disabled="!state.parent" @click="goUp">↑</button>
+      <button class="fbtn" :title="t('finder.refresh')" @click="reload">⟳</button>
+      <button class="fbtn" :title="t('finder.goToFolder')" @click="goPath">{{ t('finder.goTo') }}</button>
+      <button class="fbtn" :class="{ on: state.view === 'icons' }" :title="t('finder.iconView')" @click="setView('icons')">▦</button>
+      <button class="fbtn" :class="{ on: state.view === 'list' }" :title="t('finder.listView')" @click="setView('list')">☰</button>
       <span class="fspace"></span>
-      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput">
-      <button class="fbtn" title="Importer des fichiers" @click="importClick">⬆ Importer</button>
-      <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">⬇ Télécharger</button>
-      <button class="fbtn" @click="mkdir">Nouveau dossier</button>
-      <button class="fbtn" :disabled="!state.sel" @click="rename">Renommer</button>
-      <button class="fbtn" :disabled="!state.sel" @click="remove">Supprimer</button>
-      <button class="fbtn" :disabled="!state.sel" @click="compress" title="Compresser en .tar.gz">Compresser</button>
-      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">Extraire</button>
+      <input class="fsearch" type="search" :placeholder="t('finder.search')" v-model="state.query" @input="onSearchInput">
+      <button class="fbtn" :title="t('finder.importFiles')" @click="importClick">{{ t('finder.import') }}</button>
+      <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">{{ t('finder.download') }}</button>
+      <button class="fbtn" @click="mkdir">{{ t('finder.newFolder') }}</button>
+      <button class="fbtn" :disabled="!state.sel" @click="rename">{{ t('finder.rename') }}</button>
+      <button class="fbtn" :disabled="!state.sel" @click="remove">{{ t('finder.delete') }}</button>
+      <button class="fbtn" :disabled="!state.sel" @click="compress" :title="t('finder.compressTitle')">{{ t('finder.compress') }}</button>
+      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">{{ t('finder.extract') }}</button>
     </div>
     <div
       v-if="state.view === 'icons'"
@@ -294,7 +297,7 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       @drop="onGridDrop"
       @contextmenu="openCtx($event, null)"
     >
-      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? 'Aucun résultat' : 'Dossier vide' }}</div>
+      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? t('finder.noResults') : t('finder.emptyFolder') }}</div>
       <div
         v-for="e in state.entries"
         :key="entryPath(e)"
@@ -323,8 +326,8 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       @drop="onGridDrop"
       @contextmenu="openCtx($event, null)"
     >
-      <div class="flist-head"><span class="fl-name">Nom</span><span class="fl-size">Taille</span><span class="fl-date">Modifié</span></div>
-      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? 'Aucun résultat' : 'Dossier vide' }}</div>
+      <div class="flist-head"><span class="fl-name">{{ t('finder.colName') }}</span><span class="fl-size">{{ t('finder.colSize') }}</span><span class="fl-date">{{ t('finder.colModified') }}</span></div>
+      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? t('finder.noResults') : t('finder.emptyFolder') }}</div>
       <div
         v-for="e in state.entries"
         :key="entryPath(e)"
@@ -351,27 +354,27 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
     <Teleport to="body">
     <div v-if="ctx.show" class="ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <template v-if="ctx.e">
-        <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">Ouvrir</div>
-        <div v-if="ctx.e.type === 'dir'" class="ctx-item" @click="openGit(ctx.e); closeCtx()">Ouvrir dans Git</div>
-        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">Télécharger</div>
-        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="tailLogs(ctx.e); closeCtx()">Suivre les logs</div>
+        <div class="ctx-item" @click="dblclick(ctx.e); closeCtx()">{{ t('finder.open') }}</div>
+        <div v-if="ctx.e.type === 'dir'" class="ctx-item" @click="openGit(ctx.e); closeCtx()">{{ t('finder.openInGit') }}</div>
+        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="download(); closeCtx()">{{ t('finder.download') }}</div>
+        <div v-if="ctx.e.type !== 'dir'" class="ctx-item" @click="tailLogs(ctx.e); closeCtx()">{{ t('finder.tailLogs') }}</div>
         <div class="ctx-sep"></div>
-        <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">Copier</div>
-        <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">Couper</div>
-        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">{{ t('common.copy') }}</div>
+        <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">{{ t('common.cut') }}</div>
+        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">{{ t('common.paste') }}</div>
         <div class="ctx-sep"></div>
-        <div class="ctx-item" @click="rename(); closeCtx()">Renommer…</div>
-        <div class="ctx-item" @click="compress(); closeCtx()">Compresser</div>
-        <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">Extraire</div>
+        <div class="ctx-item" @click="rename(); closeCtx()">{{ t('finder.renameEllipsis') }}</div>
+        <div class="ctx-item" @click="compress(); closeCtx()">{{ t('finder.compress') }}</div>
+        <div v-if="isArchive(ctx.e.name)" class="ctx-item" @click="extract(); closeCtx()">{{ t('finder.extract') }}</div>
         <div class="ctx-sep"></div>
-        <div class="ctx-item danger" @click="remove(); closeCtx()">Mettre à la corbeille</div>
+        <div class="ctx-item danger" @click="remove(); closeCtx()">{{ t('finder.moveToTrash') }}</div>
         <div class="ctx-sep"></div>
-        <div class="ctx-item" @click="properties(ctx.e); closeCtx()">Propriétés…</div>
+        <div class="ctx-item" @click="properties(ctx.e); closeCtx()">{{ t('finder.properties') }}</div>
       </template>
       <template v-else>
-        <div class="ctx-item" @click="mkdir(); closeCtx()">Nouveau dossier</div>
-        <div class="ctx-item" @click="importClick(); closeCtx()">Importer des fichiers…</div>
-        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">Coller</div>
+        <div class="ctx-item" @click="mkdir(); closeCtx()">{{ t('finder.newFolder') }}</div>
+        <div class="ctx-item" @click="importClick(); closeCtx()">{{ t('finder.importFilesEllipsis') }}</div>
+        <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">{{ t('common.paste') }}</div>
       </template>
     </div>
     </Teleport>

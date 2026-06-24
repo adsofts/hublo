@@ -1,28 +1,31 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { t } from '../i18n.js'
 
-// Métadonnées par app : nom convivial (menubar) + géométrie initiale.
+// Métadonnées par app : clé i18n du nom convivial (menubar) + géométrie initiale.
 const APP_META = {
-  finder: { title: 'Finder', w: 680, h: 450 },
-  textedit: { title: 'TextEdit', w: 640, h: 460 },
-  terminal: { title: 'Terminal', w: 660, h: 400 },
-  monitor: { title: 'Moniteur d’activité', w: 560, h: 420 },
-  preview: { title: 'Aperçu', w: 560, h: 440 },
-  sysinfo: { title: 'Infos système', w: 380, h: 470 },
-  trash: { title: 'Corbeille', w: 520, h: 400 },
-  network: { title: 'Lecteurs réseau', w: 580, h: 500 },
-  logs: { title: 'Logs', w: 720, h: 460 },
-  storage: { title: 'Stockage', w: 560, h: 480 },
-  db: { title: 'Base de données', w: 820, h: 540 },
-  git: { title: 'Git', w: 800, h: 540 },
-  props: { title: 'Infos', w: 360, h: 480 },
-  about: { title: 'À propos de Hublo', w: 380, h: 300 }
+  finder: { titleKey: 'dock.finder', w: 680, h: 450 },
+  textedit: { titleKey: 'dock.textedit', w: 640, h: 460 },
+  terminal: { titleKey: 'dock.terminal', w: 660, h: 400 },
+  monitor: { titleKey: 'dock.activityMonitor', w: 560, h: 420 },
+  preview: { titleKey: 'menubar.preview', w: 560, h: 440 },
+  sysinfo: { titleKey: 'menubar.systemInfo', w: 380, h: 470 },
+  trash: { titleKey: 'dock.trash', w: 520, h: 400 },
+  network: { titleKey: 'dock.networkDrives', w: 580, h: 500 },
+  logs: { titleKey: 'dock.logs', w: 720, h: 460 },
+  storage: { titleKey: 'dock.storage', w: 560, h: 480 },
+  db: { titleKey: 'dock.database', w: 820, h: 540 },
+  git: { titleKey: 'dock.git', w: 800, h: 540 },
+  props: { titleKey: 'props.infoTitleShort', w: 360, h: 480 },
+  about: { titleKey: 'menubar.aboutHublo', w: 380, h: 300 }
 }
-const friendly = (app) => (APP_META[app] && APP_META[app].title) || app
+// Renvoie la CLÉ i18n du nom d'app (résolue à l'affichage → réactif au changement de langue).
+const friendlyKey = (app) => (APP_META[app] && APP_META[app].titleKey) || null
 
 export const useWindowsStore = defineStore('windows', () => {
-  const wins = ref([])            // [{ id, app, title, x, y, w, h, z, min, zoom, prev, ...payload }]
-  const activeApp = ref('Finder') // nom d'app affiché dans la menubar
+  const wins = ref([])            // [{ id, app, title, titleKey, x, y, w, h, z, min, zoom, prev, ...payload }]
+  const activeAppKey = ref('dock.finder') // clé i18n du nom d'app affiché dans la menubar
+  const activeApp = computed(() => activeAppKey.value === 'desktop.name' ? t('desktop.name') : t(activeAppKey.value))
   const clip = ref(null)          // presse-papier PARTAGÉ entre fenêtres { path, name, mode }
   let zCounter = 100
   let idCounter = 0
@@ -34,21 +37,21 @@ export const useWindowsStore = defineStore('windows', () => {
   function focus (id) {
     const w = byId(id)
     if (!w) return
-    w.z = ++zCounter; w.min = false; activeApp.value = friendly(w.app)
+    w.z = ++zCounter; w.min = false; activeAppKey.value = friendlyKey(w.app) || 'desktop.name'
   }
 
   // Crée TOUJOURS une nouvelle fenêtre.
   function openNew (app, payload = {}) {
-    const meta = APP_META[app] || { title: app, w: 560, h: 380 }
+    const meta = APP_META[app] || { titleKey: null, w: 560, h: 380 }
     const idx = wins.value.length
+    // titleKey = nom d'app par défaut (résolu réactivement) ; title (explicite) le remplace s'il existe.
     const w = {
-      id: ++idCounter, app, title: meta.title,
+      id: ++idCounter, app, titleKey: meta.titleKey || null, title: null,
       x: 70 + (idx % 7) * 30, y: 50 + (idx % 7) * 26,
       w: meta.w, h: meta.h, z: ++zCounter, min: false, zoom: false, prev: null, ...payload
     }
-    if (!w.title) w.title = meta.title
     wins.value.push(w)
-    activeApp.value = friendly(app)
+    activeAppKey.value = friendlyKey(app) || 'desktop.name'
     return w
   }
 
@@ -62,9 +65,9 @@ export const useWindowsStore = defineStore('windows', () => {
   function close (id) {
     const i = wins.value.findIndex(w => w.id === id)
     if (i >= 0) wins.value.splice(i, 1)
-    activeApp.value = wins.value.length
-      ? friendly(wins.value.reduce((a, b) => (a.z > b.z ? a : b)).app)
-      : 'Bureau'
+    activeAppKey.value = wins.value.length
+      ? (friendlyKey(wins.value.reduce((a, b) => (a.z > b.z ? a : b)).app) || 'desktop.name')
+      : 'desktop.name'
   }
   function minimize (id) { const w = byId(id); if (w) w.min = true }
   function toggleZoom (id, { menuH = 26 } = {}) {
