@@ -29,8 +29,7 @@ async function load () {
   catch (ex) { toast.show(ex.message) }
 }
 async function apply () {
-  if (win.value?.host) { toast.show('Lecture seule (lecteur réseau)'); return }
-  try { await api.chmod(path.value, toOctal()); toast.show('Droits mis à jour'); load() }
+  try { await api.chmod(path.value, toOctal(), win.value?.host); toast.show('Droits mis à jour'); load() }
   catch (ex) { toast.show(ex.message) }
 }
 function fmtDate (ms) { return new Date(ms).toLocaleString('fr-FR') }
@@ -66,7 +65,7 @@ watch(path, load)
               <tr><td>Autres</td><td><input type="checkbox" v-model="perms.o.r"></td><td><input type="checkbox" v-model="perms.o.w"></td><td><input type="checkbox" v-model="perms.o.x"></td></tr>
             </tbody>
           </table>
-          <div class="pp-foot"><span class="pp-oct">chmod {{ toOctal() }}</span><button class="fbtn" @click="apply" :disabled="!!win?.host">Appliquer</button></div>
+          <div class="pp-foot"><span class="pp-oct">chmod {{ toOctal() }}</span><button class="fbtn" @click="apply">Appliquer</button></div>
         </div>
       </template>
       <p v-else class="si-loading">Chargement…</p>

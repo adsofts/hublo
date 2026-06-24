@@ -55,7 +55,6 @@ async function openPath (path) {
 }
 
 async function save () {
-  if (win.value?.host) { toast.show('Lecture seule (lecteur réseau)'); return }
   let path = curPath.value
   if (!path) {
     path = prompt('Chemin du fichier à enregistrer :', (auth.home || '') + '/sans-titre.txt')
@@ -65,7 +64,7 @@ async function save () {
     setTitle(baseName(path))
   }
   try {
-    await api.write(path, editor.getValue())
+    await api.write(path, editor.getValue(), win.value?.host)
     status.value = 'enregistré ✓'
     dirty.value = false
     toast.show('Enregistré')
@@ -82,7 +81,6 @@ onMounted(async () => {
     automaticLayout: false,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
-    readOnly: !!win.value?.host,
     fontFamily: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
   })
   editor.onDidChangeModelContent(() => {
@@ -104,7 +102,6 @@ onBeforeUnmount(() => {
 
 // recharge si on rouvre TextEdit avec un nouveau chemin
 watch(() => win.value && win.value.path, (p, old) => {
-  if (editor) editor.updateOptions({ readOnly: !!win.value?.host })
   if (p && p !== old && p !== curPath.value) openPath(p)
 })
 </script>
@@ -113,8 +110,8 @@ watch(() => win.value && win.value.path, (p, old) => {
   <WindowFrame :win-id="winId" body-class="flexcol">
     <div class="te-bar">
       <span class="te-name">{{ docName }}</span>
-      <button class="fbtn" @click="save" :disabled="!!win?.host">Enregistrer</button>
-      <span class="te-status">{{ win?.host ? '🌐 lecture seule' : status }}</span>
+      <button class="fbtn" @click="save">Enregistrer</button>
+      <span class="te-status">{{ status }}</span>
     </div>
     <div ref="editorHost" class="te-editor"></div>
   </WindowFrame>

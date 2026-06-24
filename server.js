@@ -279,10 +279,11 @@ app.get('/api/fs/read', async (req, reply) => {
 
 app.post('/api/fs/write', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   try {
-    await pf(s.sftp.writeFile.bind(s.sftp), path, req.body.content ?? '')
+    await pf(t.sftp.writeFile.bind(t.sftp), path, req.body.content ?? '')
     audit(req, s.username, 'write', path)
     return { ok: true }
   } catch (e) { return reply.code(400).send({ error: 'Écriture impossible : ' + e.message }) }
@@ -290,29 +291,32 @@ app.post('/api/fs/write', async (req, reply) => {
 
 app.post('/api/fs/mkdir', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
-  try { await pf(s.sftp.mkdir.bind(s.sftp), path); audit(req, s.username, 'mkdir', path); return { ok: true } }
+  try { await pf(t.sftp.mkdir.bind(t.sftp), path); audit(req, s.username, 'mkdir', path); return { ok: true } }
   catch (e) { return reply.code(400).send({ error: 'Création impossible : ' + e.message }) }
 })
 
 app.post('/api/fs/rename', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const from = safePath(req.body?.from), to = safePath(req.body?.to)
   if (!from || !to) return reply.code(400).send({ error: 'chemin invalide' })
-  try { await pf(s.sftp.rename.bind(s.sftp), from, to); audit(req, s.username, 'rename', from + ' → ' + to); return { ok: true } }
+  try { await pf(t.sftp.rename.bind(t.sftp), from, to); audit(req, s.username, 'rename', from + ' → ' + to); return { ok: true } }
   catch (e) { return reply.code(400).send({ error: 'Renommage impossible : ' + e.message }) }
 })
 
 app.post('/api/fs/delete', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
-  if (!path || path === '/' || path === s.home) return reply.code(400).send({ error: 'chemin invalide' })
-  if (path.startsWith(posix.join(s.home, '.hublo-trash'))) return reply.code(400).send({ error: 'déjà dans la corbeille' })
-  // mise à la corbeille (déplacement vers ~/.hublo-trash/<id>/ + mémo du chemin d'origine)
+  if (!path || path === '/' || path === t.home) return reply.code(400).send({ error: 'chemin invalide' })
+  if (path.startsWith(posix.join(t.home, '.hublo-trash'))) return reply.code(400).send({ error: 'déjà dans la corbeille' })
+  // mise à la corbeille (déplacement vers ~/.hublo-trash/<id>/ sur la machine cible + mémo du chemin d'origine)
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-  const dir = posix.join(s.home, '.hublo-trash', id)
-  const r = await sshRun(s.conn, `mkdir -p ${shq(dir)} && printf '%s' ${shq(path)} > ${shq(dir + '/.origpath')} && mv -- ${shq(path)} ${shq(dir + '/')}`)
+  const dir = posix.join(t.home, '.hublo-trash', id)
+  const r = await sshRun(t.conn, `mkdir -p ${shq(dir)} && printf '%s' ${shq(path)} > ${shq(dir + '/.origpath')} && mv -- ${shq(path)} ${shq(dir + '/')}`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Mise à la corbeille impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'trash', path)
   return { ok: true }
@@ -321,6 +325,7 @@ app.post('/api/fs/delete', async (req, reply) => {
 // upload (multipart) : dépose le(s) fichier(s) dans le dossier `path`
 app.post('/api/fs/upload', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const dir = safePath(req.query.path)
   if (!dir) return reply.code(400).send({ error: 'chemin invalide' })
   const data = await req.file()
@@ -328,7 +333,7 @@ app.post('/api/fs/upload', async (req, reply) => {
   const dest = posix.join(dir, posix.basename(data.filename))
   try {
     await new Promise((res, rej) => {
-      const ws = s.sftp.createWriteStream(dest)
+      const ws = t.sftp.createWriteStream(dest)
       ws.on('close', res); ws.on('error', rej)
       data.file.on('limit', () => rej(new Error('fichier trop gros (> 100 Mo)')))
       data.file.pipe(ws)
@@ -388,11 +393,12 @@ app.post('/api/trash/empty', async (req, reply) => {
 // ---------- ARCHIVES ----------
 app.post('/api/fs/compress', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
-  if (!path || path === '/' || path === s.home) return reply.code(400).send({ error: 'chemin invalide' })
+  if (!path || path === '/' || path === t.home) return reply.code(400).send({ error: 'chemin invalide' })
   const dir = posix.dirname(path), base = posix.basename(path)
   const out = base + '.tar.gz'
-  const r = await sshRun(s.conn, `cd ${shq(dir)} && tar -czf ${shq(out)} -- ${shq(base)}`)
+  const r = await sshRun(t.conn, `cd ${shq(dir)} && tar -czf ${shq(out)} -- ${shq(base)}`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Compression impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'compress', path)
   return { ok: true, name: out }
@@ -400,6 +406,7 @@ app.post('/api/fs/compress', async (req, reply) => {
 
 app.post('/api/fs/extract', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
   if (!path) return reply.code(400).send({ error: 'chemin invalide' })
   const dir = posix.dirname(path), base = posix.basename(path), low = base.toLowerCase()
@@ -412,7 +419,7 @@ app.post('/api/fs/extract', async (req, reply) => {
     return reply.code(400).send({ error: 'Format non géré (zip, tar.gz, tgz, tar)' })
   }
   const cmd = `cd ${shq(dir)} || exit 1; f=${shq(folder)}; [ -e "$f" ] && f="$f-extrait-$(date +%s)"; mkdir -p "$f" && ${tool}`
-  const r = await sshRun(s.conn, cmd)
+  const r = await sshRun(t.conn, cmd)
   if (r.code !== 0) return reply.code(400).send({ error: 'Extraction impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'extract', path)
   return { ok: true }
@@ -421,9 +428,10 @@ app.post('/api/fs/extract', async (req, reply) => {
 // copie (gère la collision : suffixe -copie-<ts>)
 app.post('/api/fs/copy', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let tg; try { tg = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const from = safePath(req.body?.from), to = safePath(req.body?.to)
   if (!from || !to) return reply.code(400).send({ error: 'chemin invalide' })
-  const r = await sshRun(s.conn, `t=${shq(to)}; [ -e "$t" ] && t="$t-copie-$(date +%s)"; cp -r -- ${shq(from)} "$t" && printf '%s' "$t"`)
+  const r = await sshRun(tg.conn, `t=${shq(to)}; [ -e "$t" ] && t="$t-copie-$(date +%s)"; cp -r -- ${shq(from)} "$t" && printf '%s' "$t"`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Copie impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'copy', from + ' → ' + r.out)
   return { ok: true, path: r.out }
@@ -444,10 +452,11 @@ app.get('/api/fs/info', async (req, reply) => {
 // chmod
 app.post('/api/fs/chmod', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
   const path = safePath(req.body?.path)
   const mode = String(req.body?.mode || '')
   if (!path || !/^[0-7]{3,4}$/.test(mode)) return reply.code(400).send({ error: 'paramètres invalides' })
-  const r = await sshRun(s.conn, `chmod ${shq(mode)} -- ${shq(path)}`)
+  const r = await sshRun(t.conn, `chmod ${shq(mode)} -- ${shq(path)}`)
   if (r.code !== 0) return reply.code(400).send({ error: 'Modification des droits impossible : ' + (r.err || '').trim() })
   audit(req, s.username, 'chmod', mode + ' ' + path)
   return { ok: true }
@@ -550,11 +559,12 @@ app.get('/api/sysinfo', async (req, reply) => {
 // ---------- RECHERCHE DE FICHIERS ----------
 app.get('/api/fs/search', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
-  const dir = safePath(req.query.path || s.home)
+  let tg; try { tg = await resolveTarget(s, req.query.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const dir = safePath(req.query.path || tg.home)
   const q = String(req.query.q || '').replace(/[^\w.\- ]/g, '').trim()
   if (!dir || q.length < 2) return { entries: [] }
   const cmd = `find ${shq(dir)} -maxdepth 4 -iname ${shq('*' + q + '*')} -not -path '*/.*' -printf '%y\\t%p\\n' 2>/dev/null | head -n 200`
-  const out = await sshExec(s.conn, cmd)
+  const out = await sshExec(tg.conn, cmd)
   const entries = out.trim().split('\n').filter(Boolean).map(l => {
     const tab = l.indexOf('\t'); if (tab < 0) return null
     const t = l.slice(0, tab), p = l.slice(tab + 1)
