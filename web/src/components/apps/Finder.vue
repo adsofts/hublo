@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import WindowFrame from '../WindowFrame.vue'
-import { api, join, icoFor, isImage } from '../../api.js'
+import { api, join, icoFor, isImage, isPdf, isArchive } from '../../api.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
@@ -63,7 +63,7 @@ function refresh () { if (state.searching) doSearch(state.query); else load(stat
 function dblclick (e) {
   const full = entryPath(e)
   if (e.type === 'dir') { state.query = ''; state.searching = false; load(full) }
-  else if (isImage(e.name)) windows.open('preview', { path: full, title: e.name })
+  else if (isImage(e.name) || isPdf(e.name)) windows.open('preview', { path: full, title: e.name })
   else windows.open('textedit', { path: full })
 }
 
@@ -88,7 +88,7 @@ async function rename () {
 
 async function remove () {
   if (!state.sel) return
-  if (!confirm('Supprimer « ' + state.sel.name + ' » ?')) return
+  if (!confirm('Mettre « ' + state.sel.name + ' » à la corbeille ?')) return
   try { await api.remove(entryPath(state.sel)); refresh(); toast.show('Supprimé') }
   catch (ex) { toast.show(ex.message) }
 }
@@ -110,6 +110,17 @@ function download () {
   document.body.appendChild(a)
   a.click()
   a.remove()
+}
+
+async function compress () {
+  if (!state.sel) return
+  try { const d = await api.compress(entryPath(state.sel)); refresh(); toast.show('Archive créée : ' + d.name) }
+  catch (ex) { toast.show(ex.message) }
+}
+async function extract () {
+  if (!state.sel) return
+  try { await api.extract(entryPath(state.sel)); refresh(); toast.show('Extrait') }
+  catch (ex) { toast.show(ex.message) }
 }
 
 async function uploadFiles (files, destDir) {
@@ -185,6 +196,8 @@ load(state.path, false)
       <button class="fbtn" @click="mkdir">Nouveau dossier</button>
       <button class="fbtn" :disabled="!state.sel" @click="rename">Renommer</button>
       <button class="fbtn" :disabled="!state.sel" @click="remove">Supprimer</button>
+      <button class="fbtn" :disabled="!state.sel" @click="compress" title="Compresser en .tar.gz">Compresser</button>
+      <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">Extraire</button>
     </div>
     <div
       class="grid"

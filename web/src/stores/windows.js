@@ -9,6 +9,7 @@ const APP_META = {
   monitor: { title: 'Moniteur d’activité', w: 560, h: 420 },
   preview: { title: 'Aperçu', w: 560, h: 440 },
   sysinfo: { title: 'Infos système', w: 380, h: 470 },
+  trash: { title: 'Corbeille', w: 520, h: 400 },
   about: { title: 'À propos de Hublo', w: 380, h: 300 }
 }
 
