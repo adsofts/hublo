@@ -58,6 +58,7 @@ body{
   background:rgba(246,246,248,.9);backdrop-filter:blur(24px) saturate(160%);
   border:1px solid rgba(0,0,0,.12);border-radius:8px;box-shadow:0 14px 44px rgba(0,0,0,.32)}
 .dd-item{font-size:13px;padding:6px 12px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.dd-check{display:inline-block;width:14px;text-align:center}
 .dd-item:hover{background:var(--accent);color:#fff}
 .dd-item.disabled{opacity:.45;cursor:default;font-size:12px}
 .dd-item.disabled:hover{background:transparent;color:inherit}

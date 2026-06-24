@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api, fmtSize } from '../../api.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const { t, locale } = useI18n()
 const wp = defineProps({ winId: { type: Number, required: true } })
 const windows = useWindowsStore()
 const toast = useToastStore()
@@ -29,10 +31,10 @@ async function load () {
   catch (ex) { toast.show(ex.message) }
 }
 async function apply () {
-  try { await api.chmod(path.value, toOctal(), win.value?.host); toast.show('Droits mis à jour'); load() }
+  try { await api.chmod(path.value, toOctal(), win.value?.host); toast.show(t('props.rightsUpdated')); load() }
   catch (ex) { toast.show(ex.message) }
 }
-function fmtDate (ms) { return new Date(ms).toLocaleString('fr-FR') }
+function fmtDate (ms) { return new Date(ms).toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US') }
 
 onMounted(load)
 watch(path, load)
@@ -50,25 +52,25 @@ watch(path, load)
           </div>
         </div>
         <div class="props-rows">
-          <div class="props-row"><span>Taille</span><b>{{ fmtSize(info.size) }}</b></div>
-          <div class="props-row"><span>Modifié</span><b>{{ fmtDate(info.mtime) }}</b></div>
-          <div class="props-row"><span>Propriétaire</span><b>{{ info.owner }} : {{ info.group }}</b></div>
-          <div class="props-row"><span>Mode</span><b>{{ info.perms }} ({{ info.octal }})</b></div>
+          <div class="props-row"><span>{{ t('props.size') }}</span><b>{{ fmtSize(info.size) }}</b></div>
+          <div class="props-row"><span>{{ t('props.modified') }}</span><b>{{ fmtDate(info.mtime) }}</b></div>
+          <div class="props-row"><span>{{ t('props.owner') }}</span><b>{{ info.owner }} : {{ info.group }}</b></div>
+          <div class="props-row"><span>{{ t('props.mode') }}</span><b>{{ info.perms }} ({{ info.octal }})</b></div>
         </div>
         <div class="props-perms">
-          <div class="pp-title">Droits Unix</div>
+          <div class="pp-title">{{ t('props.unixRights') }}</div>
           <table>
-            <thead><tr><th></th><th>Lire</th><th>Écrire</th><th>Exéc.</th></tr></thead>
+            <thead><tr><th></th><th>{{ t('props.read') }}</th><th>{{ t('props.write') }}</th><th>{{ t('props.exec') }}</th></tr></thead>
             <tbody>
-              <tr><td>Propriétaire</td><td><input type="checkbox" v-model="perms.u.r"></td><td><input type="checkbox" v-model="perms.u.w"></td><td><input type="checkbox" v-model="perms.u.x"></td></tr>
-              <tr><td>Groupe</td><td><input type="checkbox" v-model="perms.g.r"></td><td><input type="checkbox" v-model="perms.g.w"></td><td><input type="checkbox" v-model="perms.g.x"></td></tr>
-              <tr><td>Autres</td><td><input type="checkbox" v-model="perms.o.r"></td><td><input type="checkbox" v-model="perms.o.w"></td><td><input type="checkbox" v-model="perms.o.x"></td></tr>
+              <tr><td>{{ t('props.ownerRow') }}</td><td><input type="checkbox" v-model="perms.u.r"></td><td><input type="checkbox" v-model="perms.u.w"></td><td><input type="checkbox" v-model="perms.u.x"></td></tr>
+              <tr><td>{{ t('props.group') }}</td><td><input type="checkbox" v-model="perms.g.r"></td><td><input type="checkbox" v-model="perms.g.w"></td><td><input type="checkbox" v-model="perms.g.x"></td></tr>
+              <tr><td>{{ t('props.others') }}</td><td><input type="checkbox" v-model="perms.o.r"></td><td><input type="checkbox" v-model="perms.o.w"></td><td><input type="checkbox" v-model="perms.o.x"></td></tr>
             </tbody>
           </table>
-          <div class="pp-foot"><span class="pp-oct">chmod {{ toOctal() }}</span><button class="fbtn" @click="apply">Appliquer</button></div>
+          <div class="pp-foot"><span class="pp-oct">chmod {{ toOctal() }}</span><button class="fbtn" @click="apply">{{ t('props.apply') }}</button></div>
         </div>
       </template>
-      <p v-else class="si-loading">Chargement…</p>
+      <p v-else class="si-loading">{{ t('props.loading') }}</p>
     </div>
   </WindowFrame>
 </template>

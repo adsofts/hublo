@@ -1,19 +1,22 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWindowsStore } from '../stores/windows.js'
 
+const { t } = useI18n()
 const windows = useWindowsStore()
 
-const items = [
-  { app: 'finder', ico: '🗂️', title: 'Finder' },
-  { app: 'textedit', ico: '📝', title: 'TextEdit' },
-  { app: 'terminal', ico: '🖥️', title: 'Terminal' },
-  { app: 'monitor', ico: '📊', title: 'Moniteur d’activité' },
-  { app: 'logs', ico: '📜', title: 'Logs' },
-  { app: 'storage', ico: '💾', title: 'Stockage' },
-  { app: 'db', ico: '🗄️', title: 'Base de données' },
-  { app: 'git', ico: '🔀', title: 'Git' },
-  { app: 'network', ico: '🌐', title: 'Lecteurs réseau' }
-]
+const items = computed(() => [
+  { app: 'finder', ico: '🗂️', title: t('dock.finder') },
+  { app: 'textedit', ico: '📝', title: t('dock.textedit') },
+  { app: 'terminal', ico: '🖥️', title: t('dock.terminal') },
+  { app: 'monitor', ico: '📊', title: t('dock.activityMonitor') },
+  { app: 'logs', ico: '📜', title: t('dock.logs') },
+  { app: 'storage', ico: '💾', title: t('dock.storage') },
+  { app: 'db', ico: '🗄️', title: t('dock.database') },
+  { app: 'git', ico: '🔀', title: t('dock.git') },
+  { app: 'network', ico: '🌐', title: t('dock.networkDrives') }
+])
 
 function open (app) {
   windows.open(app)
@@ -36,7 +39,7 @@ function open (app) {
     <div
       class="dock-item"
       :class="{ running: windows.running.has('about') }"
-      title="À propos"
+      :title="t('dock.about')"
       @click="open('about')"
     >
       <span class="dock-ico">💧</span>
@@ -45,7 +48,7 @@ function open (app) {
     <div
       class="dock-item"
       :class="{ running: windows.running.has('trash') }"
-      title="Corbeille"
+      :title="t('dock.trash')"
       @click="open('trash')"
     >
       <span class="dock-ico">🗑️</span>

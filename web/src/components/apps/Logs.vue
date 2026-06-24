@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useWindowsStore } from '../../stores/windows.js'
+
+const { t } = useI18n()
 
 const wp = defineProps({ winId: { type: Number, required: true } })
 const windows = useWindowsStore()
@@ -72,23 +75,23 @@ watch(() => win.value && win.value.path, (p) => {
   <WindowFrame :win-id="winId" body-class="flexcol">
     <div class="finder-bar">
       <select class="tr-host" v-model="source">
-        <option value="file">Fichier</option>
-        <option value="journal-system">Journal système</option>
-        <option value="journal-user">Journal utilisateur</option>
+        <option value="file">{{ t('logs.file') }}</option>
+        <option value="journal-system">{{ t('logs.systemJournal') }}</option>
+        <option value="journal-user">{{ t('logs.userJournal') }}</option>
       </select>
       <input v-if="source === 'file'" class="fpath logp" v-model="path" placeholder="/var/log/syslog" spellcheck="false" @keydown.enter="start">
       <select class="tr-host" v-model="host">
-        <option :value="null">🖥️ local</option>
+        <option :value="null">{{ t('common.local') }}</option>
         <option v-for="d in drives" :key="d.id" :value="d.id">🌐 {{ d.label || d.host }}</option>
       </select>
-      <button v-if="!following" class="fbtn" @click="start">▶ Suivre</button>
-      <button v-else class="fbtn" @click="stop">⏸ Stop</button>
-      <input class="fsearch" v-model="filter" type="search" placeholder="Filtrer…">
-      <button class="fbtn" @click="clear">Vider</button>
+      <button v-if="!following" class="fbtn" @click="start">{{ t('logs.follow') }}</button>
+      <button v-else class="fbtn" @click="stop">{{ t('logs.stop') }}</button>
+      <input class="fsearch" v-model="filter" type="search" :placeholder="t('logs.filter')">
+      <button class="fbtn" @click="clear">{{ t('logs.clear') }}</button>
     </div>
     <div ref="viewEl" class="logview" @scroll="onScroll">
       <div v-for="(l, i) in filtered" :key="i" class="logline">{{ l }}</div>
-      <div v-if="!lines.length" class="finder-empty" style="color:#888">{{ following ? 'En attente de logs…' : 'Choisis une source puis « Suivre »' }}</div>
+      <div v-if="!lines.length" class="finder-empty" style="color:#888">{{ following ? t('logs.waiting') : t('logs.pickSource') }}</div>
     </div>
   </WindowFrame>
 </template>

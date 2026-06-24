@@ -1,21 +1,27 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth.js'
 import { useWindowsStore } from '../stores/windows.js'
+import { setLocale } from '../i18n.js'
 
+const { t, tm, locale } = useI18n()
 const auth = useAuthStore()
 const windows = useWindowsStore()
 
 const clock = ref('')
 let iv = null
-const days = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam']
+const localeTag = computed(() => (locale.value === 'fr' ? 'fr-FR' : 'en-US'))
 
 function tick () {
   const d = new Date()
+  const days = tm('menubar.days')
   clock.value = days[d.getDay()] + ' ' +
-    d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + '  ' +
-    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    d.toLocaleDateString(localeTag.value, { day: 'numeric', month: 'short' }) + '  ' +
+    d.toLocaleTimeString(localeTag.value, { hour: '2-digit', minute: '2-digit' })
 }
+
+function pickLang (l) { setLocale(l); openMenu.value = null; tick() }
 
 async function logout () { await auth.logout() }
 
@@ -41,24 +47,27 @@ function run (it) {
   it.act()
 }
 
-const menus = {
+const menus = computed(() => ({
   apple: [
-    { label: 'À propos de Hublo', act: () => windows.open('about') },
-    { label: 'Infos système', act: () => windows.open('sysinfo') },
+    { label: t('menubar.aboutHublo'), act: () => windows.open('about') },
+    { label: t('menubar.systemInfo'), act: () => windows.open('sysinfo') },
     { sep: true },
-    { label: 'Se déconnecter', act: logout }
+    { label: t('menubar.english'), mark: locale.value === 'en', act: () => pickLang('en') },
+    { label: t('menubar.french'), mark: locale.value === 'fr', act: () => pickLang('fr') },
+    { sep: true },
+    { label: t('menubar.logout'), act: logout }
   ],
   fichier: [
-    { label: 'Nouvelle fenêtre Finder', act: () => windows.openNew('finder') },
-    { label: 'Nouveau document', act: () => windows.openNew('textedit', { path: null, title: 'TextEdit' }) },
-    { label: 'Nouveau terminal', act: () => windows.openNew('terminal') }
+    { label: t('menubar.newFinder'), act: () => windows.openNew('finder') },
+    { label: t('menubar.newDocument'), act: () => windows.openNew('textedit', { path: null }) },
+    { label: t('menubar.newTerminal'), act: () => windows.openNew('terminal') }
   ],
   presentation: [
-    { label: 'Moniteur d’activité', act: () => windows.open('monitor') },
+    { label: t('menubar.activityMonitor'), act: () => windows.open('monitor') },
     { sep: true },
-    { label: '(astuce) double-clic sur une image dans le Finder pour l’aperçu', disabled: true, act: () => {} }
+    { label: t('menubar.previewTip'), disabled: true, act: () => {} }
   ]
-}
+}))
 
 onMounted(() => { tick(); iv = setInterval(tick, 1000); document.addEventListener('click', closeMenus) })
 onUnmounted(() => { clearInterval(iv); document.removeEventListener('click', closeMenus) })
@@ -71,20 +80,20 @@ onUnmounted(() => { clearInterval(iv); document.removeEventListener('click', clo
             @click="toggle('apple', $event)" @mouseenter="hover('apple', $event)"></span>
       <span class="menu-app">{{ windows.activeApp }}</span>
       <span class="menu-trigger" :class="{ active: openMenu === 'fichier' }"
-            @click="toggle('fichier', $event)" @mouseenter="hover('fichier', $event)">Fichier</span>
+            @click="toggle('fichier', $event)" @mouseenter="hover('fichier', $event)">{{ t('menubar.file') }}</span>
       <span class="menu-trigger" :class="{ active: openMenu === 'presentation' }"
-            @click="toggle('presentation', $event)" @mouseenter="hover('presentation', $event)">Présentation</span>
+            @click="toggle('presentation', $event)" @mouseenter="hover('presentation', $event)">{{ t('menubar.view') }}</span>
     </div>
     <div class="menu-right">
       <span class="menu-item">{{ auth.username }}</span>
-      <span class="menu-item" title="Se déconnecter" @click="logout">⏻</span>
+      <span class="menu-item" :title="t('menubar.logout')" @click="logout">⏻</span>
       <span class="menu-clock">{{ clock }}</span>
     </div>
 
     <div v-if="openMenu" class="menu-dd" :style="{ left: ddLeft + 'px' }" @click.stop>
       <template v-for="(it, i) in menus[openMenu]" :key="i">
         <div v-if="it.sep" class="dd-sep"></div>
-        <div v-else class="dd-item" :class="{ disabled: it.disabled }" @click="run(it)">{{ it.label }}</div>
+        <div v-else class="dd-item" :class="{ disabled: it.disabled }" @click="run(it)"><span class="dd-check">{{ it.mark ? '✓' : '' }}</span>{{ it.label }}</div>
       </template>
     </div>
   </div>

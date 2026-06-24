@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api } from '../../api.js'
 import { useToastStore } from '../../stores/toast.js'
 
+const { t } = useI18n()
 defineProps({ winId: { type: Number, required: true } })
 const toast = useToastStore()
 const items = ref([])
@@ -19,12 +21,12 @@ async function load () {
 }
 function pick (h) { host.value = h; load() }
 async function restore (it) {
-  try { await api.trashRestore(it.id, host.value); toast.show('Restauré'); load() } catch (ex) { toast.show(ex.message) }
+  try { await api.trashRestore(it.id, host.value); toast.show(t('trash.restored')); load() } catch (ex) { toast.show(ex.message) }
 }
 async function empty () {
   if (!items.value.length) return
-  if (!confirm('Vider définitivement la corbeille ? (' + items.value.length + ' élément·s)')) return
-  try { await api.trashEmpty(host.value); toast.show('Corbeille vidée'); load() } catch (ex) { toast.show(ex.message) }
+  if (!confirm(t('trash.confirmEmpty', { n: items.value.length }))) return
+  try { await api.trashEmpty(host.value); toast.show(t('trash.emptied')); load() } catch (ex) { toast.show(ex.message) }
 }
 onMounted(() => { loadDrives(); load() })
 </script>
@@ -34,21 +36,21 @@ onMounted(() => { loadDrives(); load() })
     <div class="finder-bar">
       <button class="fbtn" @click="load">⟳</button>
       <select class="tr-host" :value="host || ''" @change="pick($event.target.value || null)">
-        <option value="">🖥️ Cet ordinateur</option>
+        <option value="">{{ t('common.thisComputer') }}</option>
         <option v-for="d in drives" :key="d.id" :value="d.id">🌐 {{ d.label || d.host }}</option>
       </select>
-      <span class="fpath">{{ items.length }} élément·s</span>
-      <button class="fbtn" :disabled="!items.length" @click="empty">Vider la corbeille</button>
+      <span class="fpath">{{ t('trash.count', { n: items.length }) }}</span>
+      <button class="fbtn" :disabled="!items.length" @click="empty">{{ t('trash.emptyTrash') }}</button>
     </div>
     <div class="trash-list">
-      <div v-if="!items.length && !loading" class="finder-empty">Corbeille vide</div>
+      <div v-if="!items.length && !loading" class="finder-empty">{{ t('trash.empty') }}</div>
       <div v-for="it in items" :key="it.id" class="trash-row">
         <span class="trash-ic">🗑️</span>
         <div class="trash-info">
           <div class="trash-name">{{ it.name }}</div>
           <div class="trash-orig" :title="it.orig">{{ it.orig }}</div>
         </div>
-        <button class="fbtn" @click="restore(it)">Restaurer</button>
+        <button class="fbtn" @click="restore(it)">{{ t('trash.restore') }}</button>
       </div>
     </div>
   </WindowFrame>

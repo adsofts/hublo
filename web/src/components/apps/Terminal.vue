@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 
+const { t } = useI18n()
 const tp = defineProps({ winId: { type: Number, required: true } })
 const auth = useAuthStore()
 const windows = useWindowsStore()
@@ -28,7 +30,7 @@ function doFit () {
 
 onMounted(async () => {
   await nextTick()
-  windows.setTitle(tp.winId, 'Terminal — ' + (auth.username || ''))
+  windows.setTitle(tp.winId, t('terminal.title', { user: auth.username || '' }))
 
   term = new Terminal({
     fontFamily: 'ui-monospace,Menlo,Consolas,monospace',
@@ -45,7 +47,7 @@ onMounted(async () => {
   ws.binaryType = 'arraybuffer'
   ws.onopen = () => doFit()
   ws.onmessage = ev => term.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data))
-  ws.onclose = () => term.write('\r\n\x1b[31m[session terminée]\x1b[0m\r\n')
+  ws.onclose = () => term.write('\r\n\x1b[31m' + t('terminal.sessionEnded') + '\x1b[0m\r\n')
   term.onData(d => { if (ws.readyState === 1) ws.send(enc.encode(d)) })
 
   resizeObs = new ResizeObserver(() => doFit())

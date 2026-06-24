@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWindowsStore } from '../stores/windows.js'
 
 const props = defineProps({
@@ -8,8 +9,15 @@ const props = defineProps({
 })
 
 const windows = useWindowsStore()
+const { t } = useI18n()
 const MENU_H = 26
 const win = computed(() => windows.byId(props.winId))
+// Titre explicite (chemin, nom de doc…) sinon nom d'app par défaut (réactif à la langue).
+const winTitle = computed(() => {
+  const w = win.value
+  if (!w) return ''
+  return w.title || (w.titleKey ? t(w.titleKey) : w.app)
+})
 
 const style = computed(() => {
   const w = win.value
@@ -49,11 +57,11 @@ function startResize (e) {
         <span class="light y" @click.stop="minimize"></span>
         <span class="light g" @click.stop="zoom"></span>
       </div>
-      <div class="title">{{ win.title }}</div>
+      <div class="title">{{ winTitle }}</div>
     </div>
     <div class="win-body" :class="bodyClass">
       <slot :win="win" />
     </div>
-    <div class="win-resize" title="Redimensionner" @mousedown="startResize"></div>
+    <div class="win-resize" :title="t('common.resize')" @mousedown="startResize"></div>
   </div>
 </template>
