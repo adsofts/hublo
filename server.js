@@ -91,6 +91,21 @@ function safePath (p) {
 // promisify minimal pour sftp
 const pf = (fn, ...a) => new Promise((res, rej) => fn(...a, (e, r) => e ? rej(e) : res(r)))
 
+// quote shell sûr (pour les commandes exec construites avec un chemin/terme)
+const shq = (s) => `'` + String(s).replace(/'/g, `'\\''`) + `'`
+// exec une commande et renvoie stdout (string)
+function sshExec (conn, cmd) {
+  return new Promise((res) => {
+    conn.exec(cmd, (err, stream) => {
+      if (err) return res('')
+      let d = ''
+      stream.on('data', x => { d += x })
+      stream.stderr && stream.stderr.on('data', () => {})
+      stream.on('close', () => res(d))
+    })
+  })
+}
+
 // ---------- AUTH ----------
 app.post('/api/login', async (req, reply) => {
   const ip = req.headers['cf-connecting-ip'] || req.ip
@@ -270,6 +285,40 @@ app.get('/api/ps', async (req, reply) => {
     return { pid: m[0], user: m[1], cpu: m[2], mem: m[3], rss: m[4], comm: m.slice(5).join(' ') }
   })
   return { rows }
+})
+
+// ---------- INFOS SYSTÈME ----------
+app.get('/api/sysinfo', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const cmd = `echo "HOST:$(hostname)"; echo "OS:$(. /etc/os-release 2>/dev/null; echo $PRETTY_NAME)"; echo "KERNEL:$(uname -r)"; echo "UPTIME:$(uptime -p)"; echo "LOAD:$(cut -d' ' -f1-3 /proc/loadavg)"; echo "CPU:$(nproc)"; echo "MEM:$(free -b | awk '/^Mem:/{print $2,$3,$7}')"; echo "DISK:$(df -B1 -P "$HOME" | awk 'NR==2{print $2,$3,$4}')"`
+  const out = await sshExec(s.conn, cmd)
+  const m = {}
+  out.trim().split('\n').forEach(l => { const i = l.indexOf(':'); if (i > 0) m[l.slice(0, i)] = l.slice(i + 1).trim() })
+  const mem = (m.MEM || '').split(/\s+/).map(Number)
+  const disk = (m.DISK || '').split(/\s+/).map(Number)
+  return {
+    host: m.HOST || '', os: m.OS || '', kernel: m.KERNEL || '',
+    uptime: m.UPTIME || '', load: m.LOAD || '', cpu: Number(m.CPU || 0),
+    mem: { total: mem[0] || 0, used: mem[1] || 0, avail: mem[2] || 0 },
+    disk: { total: disk[0] || 0, used: disk[1] || 0, avail: disk[2] || 0 },
+    user: s.username
+  }
+})
+
+// ---------- RECHERCHE DE FICHIERS ----------
+app.get('/api/fs/search', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const dir = safePath(req.query.path || s.home)
+  const q = String(req.query.q || '').replace(/[^\w.\- ]/g, '').trim()
+  if (!dir || q.length < 2) return { entries: [] }
+  const cmd = `find ${shq(dir)} -maxdepth 4 -iname ${shq('*' + q + '*')} -not -path '*/.*' -printf '%y\\t%p\\n' 2>/dev/null | head -n 200`
+  const out = await sshExec(s.conn, cmd)
+  const entries = out.trim().split('\n').filter(Boolean).map(l => {
+    const tab = l.indexOf('\t'); if (tab < 0) return null
+    const t = l.slice(0, tab), p = l.slice(tab + 1)
+    return { name: posix.basename(p), path: p, type: t === 'd' ? 'dir' : (t === 'l' ? 'link' : 'file') }
+  }).filter(e => e && e.path && e.path !== dir)
+  return { entries }
 })
 
 // ---------- TERMINAL (WebSocket → PTY) ----------

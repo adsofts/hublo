@@ -16,7 +16,9 @@ const state = reactive({
   entries: [],
   sel: null,
   hist: [],
-  gridDrop: false
+  gridDrop: false,
+  query: '',
+  searching: false
 })
 const dropTarget = ref(null) // nom du dossier survolé en drag
 const uplInput = ref(null)
@@ -35,10 +37,32 @@ async function load (p, push = true) {
 }
 
 function select (e) { state.sel = e }
+function entryPath (e) { return e.path || join(state.path, e.name) }
+function dirOf (p) { const i = p.lastIndexOf('/'); return i > 0 ? p.slice(0, i) : '/' }
+
+// recherche de fichiers (find côté serveur, dans le dossier courant)
+let searchTimer = null
+function onSearchInput () {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => doSearch(state.query), 300)
+}
+async function doSearch (q) {
+  if (!q || q.trim().length < 2) {
+    if (state.searching) { state.searching = false; load(state.path, false) }
+    return
+  }
+  try {
+    const d = await api.search(state.path, q.trim())
+    state.entries = d.entries
+    state.sel = null
+    state.searching = true
+  } catch (ex) { toast.show(ex.message) }
+}
+function refresh () { if (state.searching) doSearch(state.query); else load(state.path, false) }
 
 function dblclick (e) {
-  const full = join(state.path, e.name)
-  if (e.type === 'dir') load(full)
+  const full = entryPath(e)
+  if (e.type === 'dir') { state.query = ''; state.searching = false; load(full) }
   else if (isImage(e.name)) windows.open('preview', { path: full, title: e.name })
   else windows.open('textedit', { path: full })
 }
@@ -58,14 +82,14 @@ async function rename () {
   if (!state.sel) return
   const n = prompt('Nouveau nom :', state.sel.name)
   if (!n || n === state.sel.name) return
-  try { await api.rename(join(state.path, state.sel.name), join(state.path, n)); load(state.path, false); toast.show('Renommé') }
+  try { const src = entryPath(state.sel); await api.rename(src, join(dirOf(src), n)); refresh(); toast.show('Renommé') }
   catch (ex) { toast.show(ex.message) }
 }
 
 async function remove () {
   if (!state.sel) return
   if (!confirm('Supprimer « ' + state.sel.name + ' » ?')) return
-  try { await api.remove(join(state.path, state.sel.name)); load(state.path, false); toast.show('Supprimé') }
+  try { await api.remove(entryPath(state.sel)); refresh(); toast.show('Supprimé') }
   catch (ex) { toast.show(ex.message) }
 }
 
@@ -81,7 +105,7 @@ async function onUpload (ev) {
 function download () {
   if (!state.sel || state.sel.type === 'dir') return
   const a = document.createElement('a')
-  a.href = api.downloadUrl(join(state.path, state.sel.name))
+  a.href = api.downloadUrl(entryPath(state.sel))
   a.download = state.sel.name
   document.body.appendChild(a)
   a.click()
@@ -155,6 +179,7 @@ load(state.path, false)
       <button class="fbtn" title="Dossier parent" :disabled="!state.parent" @click="goUp">↑</button>
       <button class="fbtn" title="Rafraîchir" @click="reload">⟳</button>
       <span class="fpath">{{ state.path }}</span>
+      <input class="fsearch" type="search" placeholder="Rechercher…" v-model="state.query" @input="onSearchInput">
       <button class="fbtn" title="Importer des fichiers" @click="importClick">⬆ Importer</button>
       <button class="fbtn" :disabled="!state.sel || state.sel.type === 'dir'" @click="download">⬇ Télécharger</button>
       <button class="fbtn" @click="mkdir">Nouveau dossier</button>
@@ -168,12 +193,13 @@ load(state.path, false)
       @dragleave="onGridDragLeave"
       @drop="onGridDrop"
     >
-      <div v-if="!state.entries.length" class="finder-empty">Dossier vide</div>
+      <div v-if="!state.entries.length" class="finder-empty">{{ state.searching ? 'Aucun résultat' : 'Dossier vide' }}</div>
       <div
         v-for="e in state.entries"
-        :key="e.name"
+        :key="entryPath(e)"
         class="cell"
-        :class="{ sel: state.sel && state.sel.name === e.name, drop: dropTarget === e.name }"
+        :class="{ sel: state.sel && entryPath(state.sel) === entryPath(e), drop: dropTarget === e.name }"
+        :title="entryPath(e)"
         draggable="true"
         @click="select(e)"
         @dblclick="dblclick(e)"

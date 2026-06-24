@@ -10,6 +10,7 @@ import Finder from './components/apps/Finder.vue'
 import TextEdit from './components/apps/TextEdit.vue'
 import Terminal from './components/apps/Terminal.vue'
 import Monitor from './components/apps/Monitor.vue'
+import SysInfo from './components/apps/SysInfo.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
 
@@ -37,6 +38,7 @@ function has (app) { return windows.running.has(app) }
       <TextEdit v-if="has('textedit')" />
       <Terminal v-if="has('terminal')" />
       <Monitor v-if="has('monitor')" />
+      <SysInfo v-if="has('sysinfo')" />
       <Preview v-if="has('preview')" />
       <About v-if="has('about')" />
     </div>

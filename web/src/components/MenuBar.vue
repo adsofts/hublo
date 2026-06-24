@@ -44,6 +44,7 @@ function run (it) {
 const menus = {
   apple: [
     { label: 'À propos de Hublo', act: () => windows.open('about') },
+    { label: 'Infos système', act: () => windows.open('sysinfo') },
     { sep: true },
     { label: 'Se déconnecter', act: logout }
   ],
