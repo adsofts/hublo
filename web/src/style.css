@@ -97,6 +97,8 @@ body{
 .fbtn:hover{background:#dededf}
 .fbtn:disabled{opacity:.4;cursor:default}
 .fpath{flex:1;font-size:12px;color:#666;background:#fff;border:1px solid #e2e2e2;border-radius:7px;height:28px;display:flex;align-items:center;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fsearch{width:150px;height:28px;border:1px solid #e2e2e2;border-radius:7px;padding:0 10px;font-size:12px;outline:none;background:#fff}
+.fsearch:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,132,255,.15)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;padding:12px;flex:1;overflow:auto;align-content:start}
 .cell{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border-radius:10px;cursor:pointer;text-align:center}
 .cell:hover{background:#eef3ff}
@@ -139,3 +141,18 @@ body{
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.8);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+
+/* Infos système */
+.sysinfo{padding:22px 24px;text-align:center;overflow:auto;position:absolute;inset:0}
+.si-logo{font-size:48px;line-height:1}
+.si-host{margin:6px 0 2px;font-size:20px}
+.si-os{color:var(--muted);font-size:12px;margin:0 0 16px;line-height:1.5}
+.si-os span{opacity:.8}
+.si-rows{text-align:left;border-top:1px solid #ececec;margin-bottom:16px}
+.si-row{display:flex;justify-content:space-between;gap:12px;padding:7px 2px;border-bottom:1px solid #ececec;font-size:13px}
+.si-row span{color:var(--muted)}
+.si-gauge{text-align:left;margin:12px 0}
+.si-gh{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px}
+.gbar{height:9px;border-radius:5px;background:#e9e9ec;overflow:hidden}
+.gbar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#34c759,#ffcc00,#ff3b30);transition:width .4s}
+.si-loading{color:var(--muted);padding:40px}

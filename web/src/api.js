@@ -34,6 +34,8 @@ export const api = {
   rename (from, to) { return post('/api/fs/rename', { from, to }) },
   remove (path) { return post('/api/fs/delete', { path }) },
   ps () { return get('/api/ps') },
+  sysinfo () { return get('/api/sysinfo') },
+  search (path, q) { return get('/api/fs/search?path=' + encodeURIComponent(path) + '&q=' + encodeURIComponent(q)) },
   downloadUrl (path) { return '/api/fs/download?path=' + encodeURIComponent(path) },
   async upload (file, destDir) {
     const fd = new FormData()
