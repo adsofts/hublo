@@ -1,6 +1,7 @@
 {
   "name": "hublo",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Hublo — a macOS-style web desktop to manage your space on a Linux server, over SSH.",
   "type": "module",

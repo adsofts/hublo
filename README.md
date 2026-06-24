@@ -137,4 +137,4 @@ Active proof of concept, evolving quickly. Issues and ideas welcome.
 
 ## License
 
-Not yet licensed — to be decided by the repository owner.
+[MIT](LICENSE) © adsofts
