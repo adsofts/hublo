@@ -132,7 +132,24 @@ body{
 .te-editor{flex:1;min-height:0;position:relative}
 
 /* Terminal */
-.term-host{position:absolute;inset:0;background:#1e1e1e;padding:6px}
+.term-host{position:absolute;inset:0;top:32px;background:#1e1e1e;padding:6px;overflow:hidden}
+/* scrollbar xterm discrète */
+.term-host .xterm-viewport::-webkit-scrollbar{width:6px}
+.term-host .xterm-viewport::-webkit-scrollbar-track{background:transparent}
+.term-host .xterm-viewport::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+.term-host .xterm-viewport::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+.term-host.hidden{display:none}
+.term-tabs{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;gap:2px;
+  background:#252526;padding:0 4px;z-index:1;overflow-x:auto}
+.term-tab{display:flex;align-items:center;gap:4px;height:28px;padding:0 10px;border-radius:6px 6px 0 0;
+  font-size:12px;color:#888;cursor:pointer;white-space:nowrap;background:#2d2d2d;border:1px solid transparent}
+.term-tab:hover{color:#ccc}
+.term-tab.active{color:#fff;background:#1e1e1e;border-color:#444;border-bottom-color:#1e1e1e}
+.term-tab-close{font-size:14px;line-height:1;opacity:.5;padding:0 2px}
+.term-tab-close:hover{opacity:1;color:#f44}
+.term-tab-add{width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:#888;cursor:pointer;border-radius:4px;flex:0 0 auto;margin-left:2px}
+.term-tab-add:hover{color:#fff;background:#3a3a3a}
 
 /* Monitor */
 .mon table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
