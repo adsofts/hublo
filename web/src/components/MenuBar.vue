@@ -3,11 +3,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth.js'
 import { useWindowsStore } from '../stores/windows.js'
+import { useClipboardStore } from '../stores/clipboard.js'
 import { setLocale } from '../i18n.js'
 
 const { t, tm, locale } = useI18n()
 const auth = useAuthStore()
 const windows = useWindowsStore()
+const clipStore = useClipboardStore()
 
 const clock = ref('')
 let iv = null
@@ -86,6 +88,9 @@ onUnmounted(() => { clearInterval(iv); document.removeEventListener('click', clo
     </div>
     <div class="menu-right">
       <span class="menu-item">{{ auth.username }}</span>
+      <span class="menu-item clip-menu-btn" @click="clipStore.toggle()" :title="'Clipboard (' + clipStore.items.length + ')'">
+        📋<span class="clip-menu-badge" v-if="clipStore.items.length">{{ clipStore.items.length }}</span>
+      </span>
       <span class="menu-item" :title="t('menubar.logout')" @click="logout">⏻</span>
       <span class="menu-clock">{{ clock }}</span>
     </div>
