@@ -819,28 +819,33 @@ app.get('/api/fs/search', async (req, reply) => {
 
 // ---------- TERMINAL (WebSocket → PTY) ----------
 app.get('/ws/terminal', { websocket: true }, (socket, req) => {
-  const ws = socket.socket || socket   // compat versions @fastify/websocket
+  const ws = socket.socket || socket
   const s = getSession(req)
-  if (!s) { try { ws.close(4001, 'non connecté') } catch {} ; return }
+  if (!s) { try { ws.close(4001, 'non connecte') } catch {} ; return }
 
-  s.conn.shell({ term: 'xterm-256color', cols: 80, rows: 24 }, (err, stream) => {
-    if (err) { try { ws.send('\r\n[hublo] impossible d’ouvrir le shell: ' + err.message + '\r\n'); ws.close() } catch {} ; return }
-    stream.on('data', d => { try { ws.send(d) } catch {} })
-    stream.on('close', () => { try { ws.close() } catch {} })
-    ws.on('message', (data, isBinary) => {
-      if (!isBinary) {
-        const txt = data.toString()
-        try {
-          const msg = JSON.parse(txt)
-          if (msg && msg.type === 'resize') { stream.setWindow(msg.rows, msg.cols, 0, 0); return }
-        } catch { /* pas du JSON → entrée terminal */ }
-        stream.write(txt)
-      } else {
-        stream.write(data)
-      }
-    })
-    ws.on('close', () => { try { stream.end() } catch {} })
+  let stream = null
+  ws.on('message', (data, isBinary) => {
+    if (!isBinary) {
+      const txt = data.toString()
+      try {
+        const msg = JSON.parse(txt)
+        if (msg && msg.type === 'init') {
+          s.conn.shell({ term: 'xterm-256color', cols: msg.cols || 80, rows: msg.rows || 24 }, (err, st) => {
+            if (err) { try { ws.send('\r\n[hublo] impossible d\'ouvrir le shell: ' + err.message + '\r\n'); ws.close() } catch {} ; return }
+            stream = st
+            stream.on('data', d => { try { ws.send(d) } catch {} })
+            stream.on('close', () => { try { ws.close() } catch {} })
+          })
+          return
+        }
+        if (msg && msg.type === 'resize' && stream) { stream.setWindow(msg.rows, msg.cols, 0, 0); return }
+      } catch {}
+      if (stream) stream.write(txt)
+    } else if (stream) {
+      stream.write(data)
+    }
   })
+  ws.on('close', () => { try { stream && stream.end() } catch {} })
 })
 
 // ---------- LOGS (suivi tail -F / journalctl -f en direct) ----------
