@@ -71,6 +71,16 @@ const menus = computed(() => ({
 
 onMounted(() => { tick(); iv = setInterval(tick, 1000); document.addEventListener('click', closeMenus) })
 onUnmounted(() => { clearInterval(iv); document.removeEventListener('click', closeMenus) })
+
+// dark mode toggle - ponytail: data-theme + localStorage, 0 dépendance
+const theme = ref(localStorage.getItem('hublo-theme') || 'light')
+function toggleTheme () {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  document.documentElement.dataset.theme = theme.value
+  localStorage.setItem('hublo-theme', theme.value)
+}
+// appliquer au mount
+document.documentElement.dataset.theme = theme.value
 </script>
 
 <template>
@@ -87,6 +97,7 @@ onUnmounted(() => { clearInterval(iv); document.removeEventListener('click', clo
     <div class="menu-right">
       <span class="menu-item">{{ auth.username }}</span>
       <span class="menu-item" :title="t('menubar.logout')" @click="logout">⏻</span>
+      <span class="menu-item theme-toggle" @click="toggleTheme">{{ theme === 'dark' ? '☀️' : '🌙' }}</span>
       <span class="menu-clock">{{ clock }}</span>
     </div>
 
