@@ -1,7 +1,9 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useClipboardStore } from '../stores/clipboard.js'
 
+const { t } = useI18n()
 const store = useClipboardStore()
 
 function pick (item) {
@@ -22,9 +24,9 @@ onUnmounted(() => document.removeEventListener('copy', onCopy))
 <template>
   <div v-if="store.open" class="clip-popup">
     <div class="clip-head">
-      <span>📋 Clipboard</span>
+      <span>📋 {{ t('clipboard.title') }}</span>
       <span class="clip-badge" v-if="store.items.length">{{ store.items.length }}</span>
-      <span class="clip-clear" @click="store.clear()" v-if="store.items.length">clear</span>
+      <span class="clip-clear" @click="store.clear()" v-if="store.items.length">{{ t('clipboard.clear') }}</span>
     </div>
     <div class="clip-list" v-if="store.items.length">
       <div
@@ -37,7 +39,7 @@ onUnmounted(() => document.removeEventListener('copy', onCopy))
         <span class="clip-del" @click.stop="store.remove(i)">×</span>
       </div>
     </div>
-    <div v-else class="clip-empty">Empty — click 📋 in menu bar after copying</div>
+    <div v-else class="clip-empty">{{ t('clipboard.empty') }}</div>
   </div>
   <div v-if="store.open" class="clip-overlay" @click="store.open = false"></div>
 </template>

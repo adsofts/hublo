@@ -32,7 +32,9 @@ const ALLOWED = (process.env.HUBLO_ALLOWED || process.env.USER || '').split(',')
 const sessions = new Map()
 // ---- rate-limit login basique : ip -> { fails, until } ----
 const loginGuard = new Map()
-const dbPool = {}   // pool de connexions Postgres par cfg.id - ponytail: Map suffit, pas besoin de classe
+const dbPool = {}   // pool de connexions Postgres par cfg.id (lazy init)
+// invalide le pool d'une connexion (après édition/suppression : credentials périmés)
+function dropPool (id) { try { dbPool[id]?.end().catch(() => {}) } catch {} delete dbPool[id] }
 
 // ---- journal d'audit (qui, quoi, quand) ----
 mkdirSync(join(__dirname, 'logs'), { recursive: true })
@@ -60,7 +62,7 @@ await app.register(fastifyStatic, {
 // ---- headers de sécurité HTTP ----
 app.addHook('onSend', async (req, reply, payload) => {
   reply.header('X-Content-Type-Options', 'nosniff')
-  reply.header('X-Frame-Options', 'DENY')
+  reply.header('X-Frame-Options', 'SAMEORIGIN')
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   if (req.headers['x-forwarded-proto'] === 'https') {
     reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
@@ -662,6 +664,7 @@ app.post('/api/db/save', async (req, reply) => {
   Object.assign(entry, { label, host, port, database, user })
   if (b.password != null && b.password !== '') entry.password = String(b.password)
   await writeDbConns(s, conns)
+  dropPool(entry.id)   // credentials peut-être modifiés → forcer un nouveau pool
   audit(req, s.username, 'db-save', entry.id + ' ' + user + '@' + host + '/' + database)
   return { ok: true, id: entry.id }
 })
@@ -670,6 +673,7 @@ app.post('/api/db/delete', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const id = String(req.body?.id || '')
   await writeDbConns(s, (await readDbConns(s)).filter(x => x.id !== id))
+  dropPool(id)
   audit(req, s.username, 'db-delete', id)
   return { ok: true }
 })

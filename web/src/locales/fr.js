@@ -283,5 +283,11 @@ export default {
     connectedAs: 'Connecté en tant que {user}',
     sshLine: 'via une session SSH sécurisée (vos droits Unix).',
     poc: 'POC · {host}'
+  },
+  clipboard: {
+    title: 'Presse-papiers',
+    clear: 'vider',
+    empty: 'Vide — cliquez 📋 dans la barre de menu après avoir copié',
+    menuTitle: 'Presse-papiers ({n})'
   }
 }

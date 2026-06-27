@@ -98,7 +98,7 @@ document.documentElement.dataset.theme = theme.value
     </div>
     <div class="menu-right">
       <span class="menu-item">{{ auth.username }}</span>
-      <span class="menu-item clip-menu-btn" @click="clipStore.toggle()" :title="'Clipboard (' + clipStore.items.length + ')'">
+      <span class="menu-item clip-menu-btn" @click="clipStore.toggle()" :title="t('clipboard.menuTitle', { n: clipStore.items.length })">
         📋<span class="clip-menu-badge" v-if="clipStore.items.length">{{ clipStore.items.length }}</span>
       </span>
       <span class="menu-item" :title="t('menubar.logout')" @click="logout">⏻</span>

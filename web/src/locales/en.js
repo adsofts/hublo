@@ -283,5 +283,11 @@ export default {
     connectedAs: 'Connected as {user}',
     sshLine: 'via a secure SSH session (your Unix permissions).',
     poc: 'POC · {host}'
+  },
+  clipboard: {
+    title: 'Clipboard',
+    clear: 'clear',
+    empty: 'Empty — click 📋 in the menu bar after copying',
+    menuTitle: 'Clipboard ({n})'
   }
 }
