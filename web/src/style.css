@@ -51,6 +51,9 @@ body{
 .menu-item{opacity:.92;cursor:default}
 .menu-right .menu-item{cursor:pointer}
 .menu-clock{font-variant-numeric:tabular-nums;min-width:120px;text-align:right}
+.clip-menu-btn{position:relative;cursor:pointer}
+.clip-menu-badge{position:absolute;top:-4px;right:-8px;background:var(--accent);color:#fff;
+  font-size:9px;padding:0 4px;border-radius:8px;min-width:14px;text-align:center;line-height:14px}
 .apple{cursor:pointer}
 .menu-trigger{cursor:pointer;opacity:.92;padding:1px 6px;border-radius:4px}
 .menu-trigger:hover,.menu-trigger.active{background:rgba(255,255,255,.2);opacity:1}
@@ -324,6 +327,27 @@ body{
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.8);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+
+/* clipboard popup — style Maccy */
+.clip-overlay{position:fixed;inset:0;z-index:9998}
+.clip-popup{position:fixed;top:34px;right:6px;z-index:9999;
+  width:300px;max-height:380px;background:rgba(30,30,35,.96);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.55);backdrop-filter:blur(20px);
+  display:flex;flex-direction:column;overflow:hidden}
+.clip-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;
+  font-size:12px;color:#aaa;border-bottom:1px solid rgba(255,255,255,.06)}
+.clip-badge{background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.clip-clear{font-size:11px;color:#666;cursor:pointer}
+.clip-clear:hover{color:#fff}
+.clip-list{overflow:auto;flex:1}
+.clip-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;
+  cursor:pointer;font-size:12px;color:#ddd;border-bottom:1px solid rgba(255,255,255,.04)}
+.clip-item:hover{background:rgba(255,255,255,.08)}
+.clip-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.clip-del{opacity:0;font-size:12px;color:#666;padding:0 2px;line-height:1}
+.clip-item:hover .clip-del{opacity:1}
+.clip-del:hover{color:#f44}
+.clip-empty{padding:24px;text-align:center;color:#555;font-size:12px}
 
 /* Infos système */
 .sysinfo{padding:22px 24px;text-align:center;overflow:auto;position:absolute;inset:0}
