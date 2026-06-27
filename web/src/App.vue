@@ -21,6 +21,7 @@ import Git from './components/apps/Git.vue'
 import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
+import ClipboardPopup from './components/ClipboardPopup.vue'
 
 const auth = useAuthStore()
 const windows = useWindowsStore()
@@ -60,4 +61,5 @@ const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor:
   </div>
 
   <Toast />
+  <ClipboardPopup />
 </template>

@@ -3,6 +3,9 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import WindowFrame from '../WindowFrame.vue'
 import { api, join, icoFor, isImage, isPdf, isArchive, fmtSize } from '../../api.js'
+import { useClipboardStore } from '../../stores/clipboard.js'
+
+const clipStore = useClipboardStore()
 import { useAuthStore } from '../../stores/auth.js'
 import { useWindowsStore } from '../../stores/windows.js'
 import { useToastStore } from '../../stores/toast.js'
@@ -162,8 +165,8 @@ function closeCtx () {
   document.removeEventListener('click', closeCtx)
   document.removeEventListener('contextmenu', closeCtx)
 }
-function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); toast.show(t('common.copied')) }
-function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); toast.show(t('common.cutDone')) }
+function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); clipStore.add(e.name); toast.show(t('common.copied')) }
+function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); clipStore.add(e.name); toast.show(t('common.cutDone')) }
 async function paste () {
   const c = windows.clip
   if (!c) return
