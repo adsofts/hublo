@@ -314,3 +314,107 @@ body{
 .gbar{height:9px;border-radius:5px;background:#e9e9ec;overflow:hidden}
 .gbar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#34c759,#ffcc00,#ff3b30);transition:width .4s}
 .si-loading{color:var(--muted);padding:40px}
+
+/* ---------- DARK MODE ---------- */
+[data-theme="dark"] {
+  --win-bg:#2c2c2e;
+  --titlebar:#323234;
+  --text:#e5e5e7;
+  --muted:#98989d;
+}
+/* fond d'écran dark — dégradé noir → bleu nuit */
+[data-theme="dark"] body{
+  background: linear-gradient(180deg, #0a0a14 0%, #0d1020 40%, #0e1830 100%);
+}
+/* fenêtres */
+[data-theme="dark"] .win-body{background:#252527}
+[data-theme="dark"] .titlebar .title{color:#ccc}
+/* menubar liquid glass dark */
+[data-theme="dark"] .menubar{background:rgba(10,10,16,.38);backdrop-filter:blur(24px) saturate(140%)}
+/* barres d'outils / fonds clairs */
+[data-theme="dark"] .finder-bar,
+[data-theme="dark"] .te-bar,
+[data-theme="dark"] .db-form,
+[data-theme="dark"] .git-commit,
+[data-theme="dark"] .git-tabs,
+[data-theme="dark"] .flist-head,
+[data-theme="dark"] .git-sec,
+[data-theme="dark"] .db-side,
+[data-theme="dark"] .git-left,
+[data-theme="dark"] .finder-side,
+[data-theme="dark"] .db-meta{background:#2a2a2d}
+/* inputs / fonds blancs */
+[data-theme="dark"] .fpath,
+[data-theme="dark"] .fsearch,
+[data-theme="dark"] .tr-host,
+[data-theme="dark"] .db-result,
+[data-theme="dark"] .gitlog,
+[data-theme="dark"] .preview-pdf,
+[data-theme="dark"] .net-form input,
+[data-theme="dark"] .net-form select,
+[data-theme="dark"] .net-form textarea,
+[data-theme="dark"] .db-form input,
+[data-theme="dark"] .db-table tr:hover td{background:#1e1e20;color:var(--text)}
+/* bordures */
+[data-theme="dark"] .finder-bar,
+[data-theme="dark"] .te-bar,
+[data-theme="dark"] .db-form,
+[data-theme="dark"] .git-commit,
+[data-theme="dark"] .git-tabs,
+[data-theme="dark"] .flist-head,
+[data-theme="dark"] .flist-row,
+[data-theme="dark"] .db-meta,
+[data-theme="dark"] .db-side,
+[data-theme="dark"] .git-left,
+[data-theme="dark"] .finder-side,
+[data-theme="dark"] .net-row,
+[data-theme="dark"] .net-form,
+[data-theme="dark"] .git-sec,
+[data-theme="dark"] .mon th,
+[data-theme="dark"] .du-df,
+[data-theme="dark"] .trash-row,
+[data-theme="dark"] .si-rows,
+[data-theme="dark"] .si-row,
+[data-theme="dark"] .props-rows,
+[data-theme="dark"] .props-row,
+[data-theme="dark"] .db-table th,
+[data-theme="dark"] .db-table td,
+[data-theme="dark"] .titlebar{border-color:rgba(255,255,255,.08)}
+/* hover / sélection */
+[data-theme="dark"] .flist-row:hover,
+[data-theme="dark"] .cell:hover,
+[data-theme="dark"] .du-row:hover,
+[data-theme="dark"] .git-file:hover,
+[data-theme="dark"] .mon tr:hover td{background:#2a2a3a}
+[data-theme="dark"] .flist-row.sel,
+[data-theme="dark"] .cell.sel,
+[data-theme="dark"] .git-file.sel{background:#2a2a4a}
+[data-theme="dark"] .side-item:hover{background:#3a3a3e}
+/* boutons */
+[data-theme="dark"] .fbtn{background:#3a3a3e;color:var(--text)}
+[data-theme="dark"] .fbtn:hover{background:#4a4a4e}
+/* textes */
+[data-theme="dark"] .fl-name,
+[data-theme="dark"] .cell .nm,
+[data-theme="dark"] .g-subj,
+[data-theme="dark"] .g-fname,
+[data-theme="dark"] .side-item{color:var(--text)}
+[data-theme="dark"] .fl-size,
+[data-theme="dark"] .fl-date,
+[data-theme="dark"] .te-name,
+[data-theme="dark"] .trash-orig,
+[data-theme="dark"] .si-row span{color:var(--muted)}
+/* dropdown / context menu */
+[data-theme="dark"] .menu-dd,
+[data-theme="dark"] .ctx{background:rgba(44,44,46,.97);color:var(--text);border-color:rgba(255,255,255,.1)}
+[data-theme="dark"] .dd-sep,
+[data-theme="dark"] .ctx-sep{background:rgba(255,255,255,.1)}
+/* divers */
+[data-theme="dark"] .db-table th,
+[data-theme="dark"] .mon th{background:#2a2a2d;color:#aaa}
+[data-theme="dark"] .gbar,
+[data-theme="dark"] .du-bar,
+[data-theme="dark"] .bar{background:#3a3a3e}
+[data-theme="dark"] .props-perms th{color:#aaa}
+[data-theme="dark"] .g-mini{background:#3a3a3e;color:var(--text)}
+[data-theme="dark"] .g-mini:hover{background:#4a4a4e}
