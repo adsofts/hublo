@@ -121,7 +121,8 @@ export default {
   },
   terminal: {
     title: 'Terminal — {user}',
-    sessionEnded: '[session terminée]'
+    sessionEnded: '[session terminée]',
+    tab: 'Term {n}'
   },
   logs: {
     file: 'Fichier',
