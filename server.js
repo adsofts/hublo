@@ -56,6 +56,27 @@ await app.register(fastifyStatic, {
   }
 })
 
+// ---- headers de sécurité HTTP ----
+app.addHook('onSend', async (req, reply, payload) => {
+  reply.header('X-Content-Type-Options', 'nosniff')
+  reply.header('X-Frame-Options', 'DENY')
+  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  if (req.headers['x-forwarded-proto'] === 'https') {
+    reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+  reply.header('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' blob:",
+    "worker-src 'self' blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "img-src 'self' data: blob:",
+    "connect-src 'self' ws: wss:",
+    "media-src 'self'",
+  ].join('; '))
+  return payload
+})
+
 function newToken () { return randomBytes(24).toString('hex') }
 function getSession (req) {
   const t = req.cookies?.[COOKIE]
@@ -276,6 +297,15 @@ app.get('/api/me', async (req, reply) => {
 function requireSession (req, reply) {
   const s = getSession(req)
   if (!s) { reply.code(401).send({ error: 'non connecté' }); return null }
+  // rate-limit par session : max 100 requêtes par fenêtre de 10 secondes
+  const now = Date.now()
+  if (!s._rate) s._rate = { count: 0, windowStart: now }
+  if (now - s._rate.windowStart > 10_000) { s._rate.count = 0; s._rate.windowStart = now }
+  s._rate.count++
+  if (s._rate.count > 100) {
+    reply.code(429).send({ error: 'Trop de requêtes, ralentissez.' })
+    return null
+  }
   return s
 }
 
