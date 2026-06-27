@@ -32,6 +32,7 @@ const ALLOWED = (process.env.HUBLO_ALLOWED || process.env.USER || '').split(',')
 const sessions = new Map()
 // ---- rate-limit login basique : ip -> { fails, until } ----
 const loginGuard = new Map()
+const dbPool = {}   // pool de connexions Postgres par cfg.id - ponytail: Map suffit, pas besoin de classe
 
 // ---- journal d'audit (qui, quoi, quand) ----
 mkdirSync(join(__dirname, 'logs'), { recursive: true })
@@ -215,13 +216,15 @@ async function writeDbConns (s, arr) {
   await pf(s.sftp.writeFile.bind(s.sftp), dbFile(s), JSON.stringify(arr, null, 2))
 }
 async function pgRun (cfg, sql) {
-  const client = new pg.Client({
-    host: cfg.host || '127.0.0.1', port: cfg.port || 5432, database: cfg.database,
-    user: cfg.user, password: cfg.password,
-    connectionTimeoutMillis: 8000, statement_timeout: 20000, query_timeout: 20000
-  })
-  await client.connect()
-  try { return await client.query(sql) } finally { try { await client.end() } catch {} }
+  // ponytail: lazy pool init par cfg.id, pas de factory ni lifecycle manager
+  if (!dbPool[cfg.id]) {
+    dbPool[cfg.id] = new pg.Pool({
+      host: cfg.host || '127.0.0.1', port: cfg.port || 5432, database: cfg.database,
+      user: cfg.user, password: cfg.password,
+      max: 3, idleTimeoutMillis: 30000, connectionTimeoutMillis: 8000
+    })
+  }
+  return await dbPool[cfg.id].query(sql)
 }
 
 // ---------- AUTH ----------
@@ -458,7 +461,7 @@ app.post('/api/fs/extract', async (req, reply) => {
   if (low.endsWith('.zip')) {
     folder = base.replace(/\.zip$/i, ''); tool = `unzip -o -q ${shq(base)} -d "$f"`
   } else if (low.endsWith('.tar.gz') || low.endsWith('.tgz') || low.endsWith('.tar')) {
-    folder = base.replace(/\.(tar\.gz|tgz|tar)$/i, ''); tool = `tar -xf ${shq(base)} -C "$f"`
+    folder = base.replace(/\.(tar\.gz|tgz|tar)$/i, ''); tool = `tar --no-same-owner --no-same-permissions -xf ${shq(base)} -C "$f"`
   } else {
     return reply.code(400).send({ error: 'Format non géré (zip, tar.gz, tgz, tar)' })
   }
