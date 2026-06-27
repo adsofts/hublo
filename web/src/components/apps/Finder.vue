@@ -27,6 +27,20 @@ const state = reactive({
   view: localStorage.getItem('hublo.finderView') || 'icons'   // 'icons' | 'list'
 })
 function setView (v) { state.view = v; try { localStorage.setItem('hublo.finderView', v) } catch { /* */ } }
+
+// breadcrumb : découpe le chemin en segments cliquables
+const crumbs = computed(() => {
+  const p = state.path
+  if (!p || p === '/') return [{ label: '/', path: '/' }]
+  const parts = p.split('/').filter(Boolean)
+  const items = [{ label: '/', path: '/' }]
+  let acc = ''
+  for (const part of parts) {
+    acc += '/' + part
+    items.push({ label: part, path: acc })
+  }
+  return items
+})
 function fmtDate (ms) {
   if (!ms) return ''
   const tag = locale.value === 'fr' ? 'fr-FR' : 'en-US'
@@ -287,6 +301,15 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
       <button class="fbtn" :disabled="!state.sel" @click="remove">{{ t('finder.delete') }}</button>
       <button class="fbtn" :disabled="!state.sel" @click="compress" :title="t('finder.compressTitle')">{{ t('finder.compress') }}</button>
       <button v-if="state.sel && isArchive(state.sel.name)" class="fbtn" @click="extract">{{ t('finder.extract') }}</button>
+    </div>
+    <div class="crumb-bar">
+      <span
+        v-for="(c, i) in crumbs"
+        :key="i"
+        class="crumb"
+        :class="{ last: i === crumbs.length - 1 }"
+        @click="load(c.path)"
+      >{{ c.label }}<span v-if="i < crumbs.length - 1" class="crumb-sep"> › </span></span>
     </div>
     <div
       v-if="state.view === 'icons'"

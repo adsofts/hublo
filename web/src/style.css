@@ -100,6 +100,14 @@ body{
 .fbtn:hover{background:#dededf}
 .fbtn:disabled{opacity:.4;cursor:default}
 .fbtn.on{background:var(--accent);color:#fff}
+/* breadcrumb */
+.crumb-bar{display:flex;align-items:center;padding:5px 10px;background:#f8f8f8;
+  border-bottom:1px solid #e6e6e6;font-size:12px;overflow-x:auto;white-space:nowrap;flex:0 0 auto}
+.crumb{cursor:pointer;color:var(--accent);padding:2px 4px;border-radius:4px}
+.crumb:hover{background:#e8e8ed}
+.crumb.last{color:var(--text);cursor:default;font-weight:600}
+.crumb.last:hover{background:transparent}
+.crumb-sep{color:#ccc;margin:0 1px}
 /* Finder — vue liste */
 .flist{flex:1;overflow:auto}
 .flist-head{display:flex;position:sticky;top:0;background:#f6f6f8;border-bottom:1px solid #e6e6e6;font-size:11px;color:#999;padding:5px 12px;z-index:1}
