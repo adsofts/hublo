@@ -250,6 +250,31 @@ async function pgRun (cfg, sql) {
   return await dbPool[cfg.id].query(sql)
 }
 
+// ===== Magasin d'applications (v0 : apps vérifiées, livrées dans le bundle, activées par user) =====
+// Catalogue. En v0 chaque entrée référence un `component` déjà présent (chargé en lazy) ;
+// en v1 il pointera vers un paquet externe (repo hublo-apps) chargé en sandbox iframe.
+const STORE_CATALOG = [
+  {
+    id: 'com.hublo.http-client',
+    component: 'http',
+    name: 'HTTP Client',
+    icon: '🔌',
+    version: '1.0.0',
+    verified: true,
+    author: 'Hublo',
+    description: 'Build and send HTTP requests (Postman-style): method, URL, custom headers, body, response viewer with JSON pretty-print and request history. Runs through your SSH session (curl), so requests go out as your Unix user.',
+    capabilities: ['http']
+  }
+]
+const appsFile = (s) => posix.join(hubloDir(s), 'apps.json')
+async function readApps (s) {
+  try { const buf = await pf(s.sftp.readFile.bind(s.sftp), appsFile(s)); const d = JSON.parse(buf.toString('utf8')); return Array.isArray(d.installed) ? d.installed : [] } catch { return [] }
+}
+async function writeApps (s, ids) {
+  await sshRun(s.conn, `mkdir -p ${shq(hubloDir(s))} && chmod 700 ${shq(hubloDir(s))}`)
+  await pf(s.sftp.writeFile.bind(s.sftp), appsFile(s), JSON.stringify({ installed: ids }, null, 2))
+}
+
 // ---------- AUTH ----------
 app.post('/api/login', async (req, reply) => {
   const ip = req.headers['cf-connecting-ip'] || req.ip
@@ -799,6 +824,31 @@ app.post('/api/git/pull', async (req, reply) => {
 app.post('/api/git/push', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   return gitWrite(s, req, reply, (dir, q) => `timeout 90 git -C ${q(dir)} push 2>&1`, 'push')
+})
+
+// ---------- MAGASIN D'APPLICATIONS ----------
+app.get('/api/store/catalog', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const installed = await readApps(s)
+  return { catalog: STORE_CATALOG, installed }
+})
+app.post('/api/store/install', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  const app = STORE_CATALOG.find(a => a.id === id)
+  if (!app) return reply.code(404).send({ error: 'application inconnue' })
+  const installed = await readApps(s)
+  if (!installed.includes(id)) { installed.push(id); await writeApps(s, installed) }
+  audit(req, s.username, 'app-install', id)
+  return { ok: true, installed }
+})
+app.post('/api/store/uninstall', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  const installed = (await readApps(s)).filter(x => x !== id)
+  await writeApps(s, installed)
+  audit(req, s.username, 'app-uninstall', id)
+  return { ok: true, installed }
 })
 
 // ---------- CLIENT HTTP / API (« Postman ») : requête via curl en SSH ----------

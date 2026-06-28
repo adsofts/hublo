@@ -60,6 +60,7 @@ export default {
     database: 'Database',
     git: 'Git',
     http: 'HTTP Client',
+    store: 'App Store',
     networkDrives: 'Network drives',
     about: 'About',
     trash: 'Trash'
@@ -90,6 +91,19 @@ export default {
     copy: 'Copy',
     copied: 'Copied',
     urlRequired: 'Enter a URL (http:// or https://)'
+  },
+  store: {
+    title: 'App Store',
+    subtitle: 'Add apps to your Hublo. Built-in apps are always available.',
+    install: 'Install',
+    remove: 'Remove',
+    installed: 'Installed',
+    verified: 'Verified',
+    verifiedHint: 'Reviewed by the Hublo maintainers.',
+    community: 'Community',
+    by: 'by {author}',
+    capabilities: 'Permissions',
+    empty: 'No apps available yet.'
   },
   finder: {
     locations: 'Locations',

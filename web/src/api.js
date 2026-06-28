@@ -79,6 +79,10 @@ export const api = {
   trashRestore (id, host) { return post('/api/trash/restore', { id, host }) },
   trashEmpty (host) { return post('/api/trash/empty', { host }) },
   httpRequest (payload) { return post('/api/http/request', payload) },
+  // magasin d'applications
+  storeCatalog () { return get('/api/store/catalog') },
+  storeInstall (id) { return post('/api/store/install', { id }) },
+  storeUninstall (id) { return post('/api/store/uninstall', { id }) },
   async upload (file, destDir, host) {
     const fd = new FormData()
     fd.append('file', file)

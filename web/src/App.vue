@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, watch, ref } from 'vue'
+import { onMounted, watch, ref, defineAsyncComponent } from 'vue'
 import { api } from './api.js'
 import { useAuthStore } from './stores/auth.js'
 import { useWindowsStore } from './stores/windows.js'
+import { useAppsStore } from './stores/apps.js'
 import Login from './components/Login.vue'
 import MenuBar from './components/MenuBar.vue'
 import Dock from './components/Dock.vue'
@@ -18,7 +19,9 @@ import Logs from './components/apps/Logs.vue'
 import Storage from './components/apps/Storage.vue'
 import DBClient from './components/apps/DBClient.vue'
 import Git from './components/apps/Git.vue'
-import HttpClient from './components/apps/HttpClient.vue'
+import Store from './components/apps/Store.vue'
+// App du magasin chargée à la demande (chunk séparé = « téléchargée » à l'installation)
+const HttpClient = defineAsyncComponent(() => import('./components/apps/HttpClient.vue'))
 import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
@@ -26,6 +29,7 @@ import ClipboardPopup from './components/ClipboardPopup.vue'
 
 const auth = useAuthStore()
 const windows = useWindowsStore()
+const appsStore = useAppsStore()
 
 const drives = ref([])
 async function loadDrives () { try { drives.value = (await api.hostsList()).hosts } catch { /* ignore */ } }
@@ -35,12 +39,12 @@ onMounted(() => auth.boot())
 
 // à la connexion, ouvre le Finder + charge les lecteurs réseau
 watch(() => auth.username, (u, old) => {
-  if (u && !old) { windows.open('finder'); loadDrives() }
+  if (u && !old) { windows.open('finder'); loadDrives(); appsStore.load() }
 })
 // rafraîchit les icônes du bureau quand une fenêtre s'ouvre/se ferme (ex. après le gestionnaire d'hôtes)
 watch(() => windows.wins.length, () => { if (auth.username) loadDrives() })
 
-const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, db: DBClient, git: Git, http: HttpClient, props: Props, preview: Preview, about: About }
+const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, db: DBClient, git: Git, http: HttpClient, store: Store, props: Props, preview: Preview, about: About }
 </script>
 
 <template>

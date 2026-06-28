@@ -17,6 +17,7 @@ const APP_META = {
   db: { titleKey: 'dock.database', w: 820, h: 540 },
   git: { titleKey: 'dock.git', w: 800, h: 540 },
   http: { titleKey: 'dock.http', w: 880, h: 580 },
+  store: { titleKey: 'dock.store', w: 620, h: 540 },
   props: { titleKey: 'props.infoTitleShort', w: 360, h: 480 },
   about: { titleKey: 'menubar.aboutHublo', w: 380, h: 300 }
 }

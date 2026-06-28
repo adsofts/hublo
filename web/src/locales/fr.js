@@ -60,6 +60,7 @@ export default {
     database: 'Base de données',
     git: 'Git',
     http: 'Client HTTP',
+    store: 'Magasin d’apps',
     networkDrives: 'Lecteurs réseau',
     about: 'À propos',
     trash: 'Corbeille'
@@ -90,6 +91,19 @@ export default {
     copy: 'Copier',
     copied: 'Copié',
     urlRequired: 'Saisissez une URL (http:// ou https://)'
+  },
+  store: {
+    title: 'Magasin d’applications',
+    subtitle: 'Ajoutez des apps à votre Hublo. Les apps intégrées sont toujours disponibles.',
+    install: 'Installer',
+    remove: 'Retirer',
+    installed: 'Installée',
+    verified: 'Vérifiée',
+    verifiedHint: 'Relue par les mainteneurs de Hublo.',
+    community: 'Communauté',
+    by: 'par {author}',
+    capabilities: 'Permissions',
+    empty: 'Aucune application disponible pour l’instant.'
   },
   finder: {
     locations: 'Emplacements',

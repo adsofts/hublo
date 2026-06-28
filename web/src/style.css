@@ -520,3 +520,34 @@ body{
 [data-theme="dark"] .hist-url,[data-theme="dark"] .resp-meta,[data-theme="dark"] .rh-v{color:var(--muted)}
 [data-theme="dark"] .rh-k{color:var(--text)}
 [data-theme="dark"] .http-req,[data-theme="dark"] .http-side,[data-theme="dark"] .http-resp,[data-theme="dark"] .http-respmeta,[data-theme="dark"] .rh-row{border-color:rgba(255,255,255,.08)}
+
+/* ---------- MAGASIN D'APPLICATIONS ---------- */
+.store-head{padding:14px 16px 10px;border-bottom:1px solid #ececee;border-bottom:1px solid #ececee}
+.store-title{font-size:17px;font-weight:700;display:block}
+.store-sub{font-size:12px;color:#888;margin-top:2px;display:block}
+.store-list{flex:1;overflow:auto;padding:12px}
+.store-card{display:flex;gap:12px;padding:13px;border:1px solid #ececee;border-radius:12px;margin-bottom:10px;background:#fff;align-items:flex-start}
+.store-ico{font-size:34px;line-height:1;flex:0 0 auto}
+.store-body{flex:1;min-width:0}
+.store-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.store-name{font-size:14px;font-weight:600}
+.store-ver{font-size:11px;color:#999;font-family:ui-monospace,monospace}
+.store-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px}
+.store-badge.verified{background:#e6f4ea;color:#1a7f37}
+.store-badge.community{background:#fff3e0;color:#b15c00}
+.store-author{font-size:11px;color:#999;margin:2px 0 5px}
+.store-desc{font-size:12.5px;line-height:1.5;color:#444}
+.store-caps{margin-top:7px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.caps-label{font-size:11px;color:#999}
+.cap-chip{font-size:10.5px;font-family:ui-monospace,monospace;background:#eef0f3;color:#556;padding:1px 7px;border-radius:8px}
+.store-action{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.store-remove{color:#cf222e}
+.store-installed{font-size:10.5px;color:#1a7f37}
+/* dark mode */
+[data-theme="dark"] .store-head,[data-theme="dark"] .store-card,[data-theme="dark"] .store-list{border-color:rgba(255,255,255,.08)}
+[data-theme="dark"] .store-card{background:#252527}
+[data-theme="dark"] .store-name{color:var(--text)}
+[data-theme="dark"] .store-desc{color:var(--muted)}
+[data-theme="dark"] .cap-chip{background:#2a2a3a;color:#aab}
+[data-theme="dark"] .store-badge.verified{background:#10301c;color:#4ade80}
+[data-theme="dark"] .store-badge.community{background:#33240e;color:#fbbf60}
