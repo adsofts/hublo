@@ -75,10 +75,11 @@ async function save () {
 
 onMounted(async () => {
   await nextTick()
+  const isDark = document.documentElement.dataset.theme === 'dark'
   editor = monaco.editor.create(editorHost.value, {
     value: '',
     language: 'plaintext',
-    theme: 'vs',
+    theme: isDark ? 'vs-dark' : 'vs',
     fontSize: 13,
     automaticLayout: false,
     minimap: { enabled: false },

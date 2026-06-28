@@ -111,6 +111,10 @@ body{
 .crumb.last{color:var(--text);cursor:default;font-weight:600}
 .crumb.last:hover{background:transparent}
 .crumb-sep{color:#ccc;margin:0 1px}
+/* dossiers PNG + tags */
+.f-img{width:42px;height:auto;flex:0 0 auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+.fl-fimg{width:20px;height:auto}
+.f-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;display:inline-block;margin-right:3px;vertical-align:middle}
 /* Finder — vue liste */
 .flist{flex:1;overflow:auto}
 .flist-head{display:flex;position:sticky;top:0;background:#f6f6f8;border-bottom:1px solid #e6e6e6;font-size:11px;color:#999;padding:5px 12px;z-index:1}
@@ -264,6 +268,10 @@ body{
 .ctx-item.danger{color:#d70015}
 .ctx-item.danger:hover{background:#d70015;color:#fff}
 .ctx-sep{height:1px;background:rgba(0,0,0,.1);margin:5px 8px}
+.ctx-tags{display:flex;gap:6px;padding:6px 12px;flex-wrap:wrap}
+.ctx-tag{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.ctx-tag:hover{border-color:#fff;transform:scale(1.15)}
+.ctx-tag-none{background:#555;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px}
 
 /* Propriétés */
 .props{padding:18px 20px}
@@ -467,6 +475,11 @@ body{
 [data-theme="dark"] .props-perms th{color:#aaa}
 [data-theme="dark"] .g-mini{background:#3a3a3e;color:var(--text)}
 [data-theme="dark"] .g-mini:hover{background:#4a4a4e}
+/* breadcrumb dark */
+[data-theme="dark"] .crumb-bar{background:#2a2a2d;border-color:#333}
+[data-theme="dark"] .crumb:hover{background:#3a3a3e}
+[data-theme="dark"] .crumb.last{color:#ccc}
+[data-theme="dark"] .crumb-sep{color:#555}
 
 /* ---------- CLIENT HTTP / API ---------- */
 .http-bar{gap:6px}
