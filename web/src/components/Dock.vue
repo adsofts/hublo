@@ -16,7 +16,6 @@ const builtins = computed(() => [
   { app: 'monitor', ico: '📊', title: t('dock.activityMonitor') },
   { app: 'logs', ico: '📜', title: t('dock.logs') },
   { app: 'storage', ico: '💾', title: t('dock.storage') },
-  { app: 'db', ico: '🗄️', title: t('dock.database') },
   { app: 'git', ico: '🔀', title: t('dock.git') },
   { app: 'network', ico: '🌐', title: t('dock.networkDrives') }
 ])

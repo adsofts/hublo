@@ -22,6 +22,8 @@ let themeObs = null
 
 const ALWAYS = new Set(['core', 'notify', 'storage'])   // capacités sans permission requise
 const curTheme = () => document.documentElement.dataset.theme || 'light'
+let markReady
+const hostReady = new Promise((r) => { markReady = r })   // résolu quand les grants sont chargés
 
 // storage app-privé (localStorage namespacé côté hôte)
 const sk = (k) => 'hublo.app.' + appId.value + '.' + k
@@ -33,7 +35,7 @@ async function dispatch (m) {
   const cap = m.capability, a = m.args || {}
   if (!ALWAYS.has(cap) && !grants.includes(cap)) throw new Error('permission not granted: ' + cap)
   switch (cap + '.' + m.method) {
-    case 'core.ready':    return { theme: curTheme(), locale: locale.value, grants, app: { id: appId.value, name: win.value?.title } }
+    case 'core.ready':    await hostReady; return { theme: curTheme(), locale: locale.value, grants, app: { id: appId.value, name: win.value?.title } }
     case 'core.setTitle': windows.setTitle(wp.winId, String(a.title || '')); return true
     case 'notify.toast':  toast.show(String(a.message || '')); return true
     case 'storage.get':   return lsGet(a.key)
@@ -43,7 +45,12 @@ async function dispatch (m) {
     case 'fs.list':       return (await api.list(a.path)).entries
     case 'fs.read':       return (await api.read(a.path)).content
     case 'fs.write':      await api.write(a.path, a.content); return true
+    case 'db.connections':return (await api.dbList()).conns
+    case 'db.tables':     return (await api.dbTables(a.conn)).tables
+    case 'db.test':       return await api.dbTest(a.conn)
     case 'db.query':      return await api.dbQuery(a.conn, a.sql)
+    case 'db.save':       return await api.dbSave(a.cfg)
+    case 'db.delete':     await api.dbDelete(a.conn); return true
     case 'host.pick': {   const p = window.prompt(t('store.pickPrompt', { type: a.type || 'file' })); return p ? p.trim() : null }
     default: throw new Error('unknown method: ' + cap + '.' + m.method)
   }
@@ -58,16 +65,24 @@ function onMessage (e) {
     (err) => post({ hublo: 1, id: m.id, type: 'result', ok: false, error: err.message || String(err) })
   )
 }
-function post (msg) { try { iframe.value?.contentWindow?.postMessage(msg, '*') } catch { /* */ } }
+// JSON-clone : garantit des objets simples (un proxy réactif Vue ferait échouer structuredClone)
+function post (msg) {
+  try { iframe.value?.contentWindow?.postMessage(JSON.parse(JSON.stringify(msg)), '*') }
+  catch (e) { console.warn('[hublo] bridge post failed', e.message) }
+}
 function emit (name, payload) { post({ hublo: 1, type: 'event', name, payload }) }
+
+// ATTACHÉ EN SETUP (synchrone) : l'iframe poste son ready() dès son chargement —
+// si le listener était posé après un await dans onMounted, le message serait perdu.
+window.addEventListener('message', onMessage)
 
 onMounted(async () => {
   if (!apps.loaded) await apps.load()
   const inst = apps.installed.find(x => x.id === appId.value)
-  grants = inst?.grants || []
+  grants = (inst?.grants || []).map(s => String(s))   // tableau simple (pas un proxy réactif)
   const meta = apps.catalog.find(a => a.id === appId.value)
   if (meta && win.value && !win.value.title) windows.setTitle(wp.winId, meta.name)
-  window.addEventListener('message', onMessage)
+  markReady()   // débloque core.ready : l'app ne démarre qu'avec les grants prêts
   themeObs = new MutationObserver(() => emit('theme', { theme: curTheme() }))
   themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 })

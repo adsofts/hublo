@@ -53,7 +53,14 @@ export const fs = {
   write: (path, content) => call('fs.write', 'write', { path, content })
 }
 export const http = { request: (opts) => call('http', 'request', opts) } // {method,url,headers,body} -> {status,headers,body,...}
-export const db   = { query: (conn, sql) => call('db', 'query', { conn, sql }) }
+export const db = {
+  connections:      ()          => call('db', 'connections', {}),       // -> [{id,label,host,port,database,user}] (no passwords)
+  tables:           (conn)      => call('db', 'tables', { conn }),       // -> [{schema,name}]
+  test:             (conn)      => call('db', 'test', { conn }),         // -> {version}
+  query:            (conn, sql) => call('db', 'query', { conn, sql }),   // -> {columns,rows,rowCount,command,truncated}
+  saveConnection:   (cfg)       => call('db', 'save', { cfg }),          // {label,host,port,database,user,password?} -> {id}
+  deleteConnection: (conn)      => call('db', 'delete', { conn })
+}
 
 // host.pick is user-mediated: it opens a Hublo file/dir picker and returns ONLY
 // what the user explicitly chose — the safe way to widen file access.
