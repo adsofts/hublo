@@ -179,6 +179,26 @@ function closeCtx () {
   document.removeEventListener('click', closeCtx)
   document.removeEventListener('contextmenu', closeCtx)
 }
+
+// ---- tags de couleur sur dossiers (localStorage) ----
+const TAG_COLORS = [
+  { name: 'blue', hex: '#3b82f6' },
+  { name: 'red', hex: '#ef4444' },
+  { name: 'green', hex: '#22c55e' },
+  { name: 'yellow', hex: '#eab308' },
+  { name: 'purple', hex: '#9333ea' },
+  { name: 'orange', hex: '#f97316' },
+  { name: 'gray', hex: '#6b7280' }
+]
+const tags = reactive(JSON.parse(localStorage.getItem('hublo.tags') || '{}'))
+function tagColor (e) { return e ? tags[entryPath(e)] || '' : '' }
+function folderSrc (e) { return '/folders/' + (tagColor(e) || 'blue') + '.png' }
+function setTag (e, colorname) {
+  const key = entryPath(e)
+  if (colorname) tags[key] = colorname; else delete tags[key]
+  localStorage.setItem('hublo.tags', JSON.stringify(tags))
+  closeCtx()
+}
 function copyItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'copy', host: state.host }); clipStore.add(e.name); toast.show(t('common.copied')) }
 function cutItem (e) { windows.setClip({ path: entryPath(e), name: e.name, mode: 'cut', host: state.host }); clipStore.add(e.name); toast.show(t('common.cutDone')) }
 async function paste () {
@@ -339,8 +359,9 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
         @dragleave="onCellDragLeave(e)"
         @drop="onCellDrop($event, e)"
       >
-        <div class="ic">{{ icoFor(e) }}</div>
-        <div class="nm">{{ e.name }}</div>
+        <img v-if="e.type==='dir'" class="f-img" :src="folderSrc(e)" alt="">
+        <div v-else class="ic">{{ icoFor(e) }}</div>
+        <div class="nm"><span v-if="tagColor(e)" class="f-dot" :style="{ background: TAG_COLORS.find(c=>c.name===tagColor(e))?.hex }"></span>{{ e.name }}</div>
       </div>
     </div>
     <div
@@ -369,7 +390,11 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
         @dragleave="onCellDragLeave(e)"
         @drop="onCellDrop($event, e)"
       >
-        <span class="fl-name"><span class="fl-ic">{{ icoFor(e) }}</span>{{ e.name }}</span>
+        <span class="fl-name">
+          <img v-if="e.type==='dir'" class="f-img fl-fimg" :src="folderSrc(e)" alt="">
+          <span v-else class="fl-ic">{{ icoFor(e) }}</span>
+          <span v-if="tagColor(e)" class="f-dot" :style="{ background: TAG_COLORS.find(c=>c.name===tagColor(e))?.hex }"></span>{{ e.name }}
+        </span>
         <span class="fl-size">{{ e.type === 'dir' ? '—' : fmtSize(e.size) }}</span>
         <span class="fl-date">{{ fmtDate(e.mtime) }}</span>
       </div>
@@ -388,6 +413,12 @@ watch(() => finderWin.value?.gotoHost, (hid, old) => {
         <div class="ctx-item" @click="copyItem(ctx.e); closeCtx()">{{ t('common.copy') }}</div>
         <div class="ctx-item" @click="cutItem(ctx.e); closeCtx()">{{ t('common.cut') }}</div>
         <div v-if="windows.clip" class="ctx-item" @click="paste(); closeCtx()">{{ t('common.paste') }}</div>
+        <div v-if="ctx.e && ctx.e.type === 'dir'" class="ctx-sep"></div>
+        <div v-if="ctx.e && ctx.e.type === 'dir'" class="ctx-tags">
+          <span class="ctx-tag" :style="{ background: c.hex }" v-for="c in TAG_COLORS" :key="c.name"
+                @click="setTag(ctx.e, c.name)" :title="c.name"></span>
+          <span v-if="tagColor(ctx.e)" class="ctx-tag ctx-tag-none" @click="setTag(ctx.e, '')" title="remove tag">✕</span>
+        </div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" @click="rename(); closeCtx()">{{ t('finder.renameEllipsis') }}</div>
         <div class="ctx-item" @click="compress(); closeCtx()">{{ t('finder.compress') }}</div>
