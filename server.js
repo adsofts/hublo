@@ -801,6 +801,75 @@ app.post('/api/git/push', async (req, reply) => {
   return gitWrite(s, req, reply, (dir, q) => `timeout 90 git -C ${q(dir)} push 2>&1`, 'push')
 })
 
+// ---------- CLIENT HTTP / API (« Postman ») : requête via curl en SSH ----------
+app.post('/api/http/request', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  let t; try { t = await resolveTarget(s, req.body?.host) } catch (e) { return reply.code(502).send({ error: 'hôte injoignable' }) }
+  const b = req.body || {}
+  const method = String(b.method || 'GET').toUpperCase()
+  if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].includes(method)) {
+    return reply.code(400).send({ error: 'méthode non supportée' })
+  }
+  const url = String(b.url || '').trim()
+  if (!/^https?:\/\//i.test(url)) return reply.code(400).send({ error: 'URL invalide (http:// ou https:// requis)' })
+  const headers = Array.isArray(b.headers) ? b.headers : []
+  const body = typeof b.body === 'string' ? b.body : ''
+  const timeout = Math.min(Math.max(Number(b.timeout) || 30, 1), 120)
+  const follow = b.followRedirects ? ' -L' : ''
+
+  const MARK = '@@HUBLO_HTTP_META@@'
+  let cmd = `curl -sS -i${follow} --max-time ${timeout} -X ${shq(method)} ${shq(url)}`
+  for (const h of headers) {
+    if (!h || h.enabled === false) continue
+    const name = String(h.name || '').trim()
+    if (!name) continue
+    cmd += ` -H ${shq(name + ': ' + String(h.value ?? ''))}`
+  }
+  if (body && method !== 'GET' && method !== 'HEAD') cmd += ` --data-binary ${shq(body)}`
+  cmd += ` -w ${shq('\\n' + MARK + '%{http_code}|%{time_total}|%{size_download}|%{content_type}')}`
+
+  const r = await sshRun(t.conn, cmd)
+  const raw = r.out || ''
+  const mi = raw.lastIndexOf(MARK)
+  let payload = raw, metaStr = ''
+  if (mi >= 0) { payload = raw.slice(0, mi).replace(/\n$/, ''); metaStr = raw.slice(mi + MARK.length) }
+  const [codeS, timeS, sizeS, ctype] = metaStr.split('|')
+  const status = parseInt(codeS, 10) || 0
+  if (status === 0) {
+    return { ok: false, error: ((r.err || raw || '').trim()) || 'requête échouée (DNS, connexion refusée ou délai dépassé)' }
+  }
+  // avec -L on garde le DERNIER bloc d'en-têtes ; on découpe au dernier "ligne vide" précédant le corps
+  const blocks = payload.split(/\r?\n\r?\n/)
+  let headerBlock = payload, respBody = ''
+  // le corps est tout ce qui suit le dernier bloc qui ressemble à des en-têtes HTTP
+  let hb = 0
+  for (let i = blocks.length - 1; i >= 0; i--) { if (/^HTTP\/\d/i.test(blocks[i])) { hb = i; break } }
+  headerBlock = blocks[hb] || ''
+  respBody = blocks.slice(hb + 1).join('\n\n')
+  const hlines = headerBlock.split(/\r?\n/)
+  const statusLine = hlines.shift() || ''
+  const respHeaders = []
+  for (const ln of hlines) {
+    const idx = ln.indexOf(':')
+    if (idx > 0) respHeaders.push({ name: ln.slice(0, idx).trim(), value: ln.slice(idx + 1).trim() })
+  }
+  const MAXB = 1_000_000
+  let truncated = false
+  if (respBody.length > MAXB) { respBody = respBody.slice(0, MAXB); truncated = true }
+  audit(req, s.username, 'http-request', method + ' ' + url + ' -> ' + status)
+  return {
+    ok: true,
+    status,
+    statusLine,
+    timeMs: Math.round((parseFloat(timeS) || 0) * 1000),
+    size: parseInt(sizeS, 10) || respBody.length,
+    contentType: (ctype || '').trim(),
+    headers: respHeaders,
+    body: respBody,
+    truncated
+  }
+})
+
 // ---------- PROCESS (exec d'une commande EN DUR) ----------
 app.get('/api/ps', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return

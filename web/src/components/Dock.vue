@@ -15,6 +15,7 @@ const items = computed(() => [
   { app: 'storage', ico: '💾', title: t('dock.storage') },
   { app: 'db', ico: '🗄️', title: t('dock.database') },
   { app: 'git', ico: '🔀', title: t('dock.git') },
+  { app: 'http', ico: '🔌', title: t('dock.http') },
   { app: 'network', ico: '🌐', title: t('dock.networkDrives') }
 ])
 

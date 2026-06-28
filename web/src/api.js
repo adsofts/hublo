@@ -78,6 +78,7 @@ export const api = {
   trashList (host) { return get('/api/trash/list' + (host ? '?host=' + encodeURIComponent(host) : '')) },
   trashRestore (id, host) { return post('/api/trash/restore', { id, host }) },
   trashEmpty (host) { return post('/api/trash/empty', { host }) },
+  httpRequest (payload) { return post('/api/http/request', payload) },
   async upload (file, destDir, host) {
     const fd = new FormData()
     fd.append('file', file)
