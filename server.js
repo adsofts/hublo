@@ -10,8 +10,9 @@ import fastifyWebsocket from '@fastify/websocket'
 import fastifyMultipart from '@fastify/multipart'
 import { Client as SSHClient } from 'ssh2'
 import pg from 'pg'
-import { randomBytes } from 'node:crypto'
-import { appendFile, mkdirSync } from 'node:fs'
+import { randomBytes, createHash } from 'node:crypto'
+import { readFile as fsReadFile } from 'node:fs/promises'
+import { appendFile, mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, posix } from 'node:path'
 
@@ -61,6 +62,8 @@ await app.register(fastifyStatic, {
 
 // ---- headers de sécurité HTTP ----
 app.addHook('onSend', async (req, reply, payload) => {
+  // la frame sandbox d'une app du magasin a sa PROPRE CSP (stricte) posée par son handler
+  if (req.url.startsWith('/api/store/frame')) return payload
   reply.header('X-Content-Type-Options', 'nosniff')
   reply.header('X-Frame-Options', 'SAMEORIGIN')
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -250,30 +253,49 @@ async function pgRun (cfg, sql) {
   return await dbPool[cfg.id].query(sql)
 }
 
-// ===== Magasin d'applications (v0 : apps vérifiées, livrées dans le bundle, activées par user) =====
-// Catalogue. En v0 chaque entrée référence un `component` déjà présent (chargé en lazy) ;
-// en v1 il pointera vers un paquet externe (repo hublo-apps) chargé en sandbox iframe.
-const STORE_CATALOG = [
-  {
-    id: 'com.hublo.http-client',
-    component: 'http',
-    name: 'HTTP Client',
-    icon: '🔌',
-    version: '1.0.0',
-    verified: true,
-    author: 'Hublo',
-    description: 'Build and send HTTP requests (Postman-style): method, URL, custom headers, body, response viewer with JSON pretty-print and request history. Runs through your SSH session (curl), so requests go out as your Unix user.',
-    capabilities: ['http']
+// ===== Magasin d'applications (v1) =====
+// Le catalogue vient du registre externe `hublo-apps`. Une app = un module frontend
+// chargé en SANDBOX iframe + permissions accordées par l'utilisateur. Aucun code backend.
+// Source du registre : URL (GitHub raw) OU chemin local. Override via HUBLO_APPS_SRC.
+const APPS_SRC = process.env.HUBLO_APPS_SRC || 'https://raw.githubusercontent.com/adsofts/hublo-apps/main'
+const sha256hex = (s) => createHash('sha256').update(s).digest('hex')
+async function srcRead (rel) {
+  if (/^https?:\/\//i.test(APPS_SRC)) {
+    const r = await fetch(APPS_SRC.replace(/\/$/, '') + '/' + rel, { signal: AbortSignal.timeout(10000) })
+    if (!r.ok) throw new Error('source ' + r.status)
+    return await r.text()
   }
-]
+  return await fsReadFile(posix.join(APPS_SRC, rel), 'utf8')
+}
+let _regCache = { at: 0, data: null }
+async function loadRegistry () {
+  if (_regCache.data && Date.now() - _regCache.at < 60000) return _regCache.data
+  const reg = JSON.parse(await srcRead('registry.json'))
+  const apps = []
+  for (const e of (reg.apps || [])) {
+    try {
+      const man = JSON.parse(await srcRead(e.manifest))
+      apps.push({
+        id: man.id, name: man.name, version: man.version, icon: man.icon,
+        author: man.author?.name || man.author || '', description: man.description,
+        capabilities: (man.capabilities || []).map(c => ({ id: c.id, reason: c.reason || '' })),
+        window: man.window || { w: 720, h: 480 },
+        verified: !!e.verified, entry: e.entry, sha256: e.sha256 || man.integrity?.sha256 || ''
+      })
+    } catch { /* entrée illisible → ignorée */ }
+  }
+  _regCache = { at: Date.now(), data: apps }
+  return apps
+}
 const appsFile = (s) => posix.join(hubloDir(s), 'apps.json')
 async function readApps (s) {
   try { const buf = await pf(s.sftp.readFile.bind(s.sftp), appsFile(s)); const d = JSON.parse(buf.toString('utf8')); return Array.isArray(d.installed) ? d.installed : [] } catch { return [] }
 }
-async function writeApps (s, ids) {
+async function writeApps (s, list) {
   await sshRun(s.conn, `mkdir -p ${shq(hubloDir(s))} && chmod 700 ${shq(hubloDir(s))}`)
-  await pf(s.sftp.writeFile.bind(s.sftp), appsFile(s), JSON.stringify({ installed: ids }, null, 2))
+  await pf(s.sftp.writeFile.bind(s.sftp), appsFile(s), JSON.stringify({ installed: list }, null, 2))
 }
+const appCodeFile = (s, id, version) => posix.join(hubloDir(s), 'apps', id, version, 'app.js')
 
 // ---------- AUTH ----------
 app.post('/api/login', async (req, reply) => {
@@ -829,26 +851,82 @@ app.post('/api/git/push', async (req, reply) => {
 // ---------- MAGASIN D'APPLICATIONS ----------
 app.get('/api/store/catalog', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
-  const installed = await readApps(s)
-  return { catalog: STORE_CATALOG, installed }
+  let catalog = []; let error = null
+  try { catalog = await loadRegistry() } catch (e) { error = 'registre injoignable' }
+  return { catalog, installed: await readApps(s), error }
 })
 app.post('/api/store/install', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const id = String(req.body?.id || '')
-  const app = STORE_CATALOG.find(a => a.id === id)
+  const grants = Array.isArray(req.body?.grants) ? req.body.grants.map(String) : []
+  let app
+  try { app = (await loadRegistry()).find(a => a.id === id) } catch { return reply.code(502).send({ error: 'registre injoignable' }) }
   if (!app) return reply.code(404).send({ error: 'application inconnue' })
-  const installed = await readApps(s)
-  if (!installed.includes(id)) { installed.push(id); await writeApps(s, installed) }
-  audit(req, s.username, 'app-install', id)
-  return { ok: true, installed }
+  // télécharge le code de l'app et VÉRIFIE le hash épinglé avant de l'installer
+  let code
+  try { code = await srcRead(app.entry) } catch { return reply.code(502).send({ error: 'téléchargement échoué' }) }
+  if (app.sha256 && sha256hex(code) !== app.sha256) {
+    return reply.code(409).send({ error: 'intégrité invalide (hash ne correspond pas) — installation refusée' })
+  }
+  const dir = posix.dirname(appCodeFile(s, id, app.version))
+  await sshRun(s.conn, `mkdir -p ${shq(dir)}`)
+  await pf(s.sftp.writeFile.bind(s.sftp), appCodeFile(s, id, app.version), code)
+  const list = (await readApps(s)).filter(x => x.id !== id)
+  list.push({ id, version: app.version, grants })
+  await writeApps(s, list)
+  audit(req, s.username, 'app-install', id + '@' + app.version + ' [' + grants.join(',') + ']')
+  return { ok: true, installed: list }
 })
 app.post('/api/store/uninstall', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const id = String(req.body?.id || '')
-  const installed = (await readApps(s)).filter(x => x !== id)
-  await writeApps(s, installed)
+  const list = (await readApps(s)).filter(x => x.id !== id)
+  await writeApps(s, list)
+  await sshRun(s.conn, `rm -rf ${shq(posix.join(hubloDir(s), 'apps', id))}`)
   audit(req, s.username, 'app-uninstall', id)
-  return { ok: true, installed }
+  return { ok: true, installed: list }
+})
+// renvoie le code VÉRIFIÉ d'une app installée (pour montage en sandbox côté client)
+app.get('/api/store/code', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.query?.id || '')
+  const inst = (await readApps(s)).find(x => x.id === id)
+  if (!inst) return reply.code(404).send({ error: 'non installée' })
+  let code
+  try { code = (await pf(s.sftp.readFile.bind(s.sftp), appCodeFile(s, id, inst.version))).toString('utf8') } catch { return reply.code(404).send({ error: 'code introuvable' }) }
+  let meta = null
+  try { meta = (await loadRegistry()).find(a => a.id === id) } catch { /* hors-ligne : on sert quand même le code */ }
+  return { id, version: inst.version, grants: inst.grants || [], code, name: meta?.name || id, window: meta?.window || { w: 720, h: 480 } }
+})
+
+// SDK + pack UI servis par l'HÔTE (versionnés avec le pont), inlinés dans la frame sandbox
+const SANDBOX_SDK = readFileSync(join(__dirname, 'store-assets', 'hublo-sdk.js'), 'utf8')
+const SANDBOX_UI = readFileSync(join(__dirname, 'store-assets', 'hublo-ui.css'), 'utf8')
+const b64utf8 = (s) => Buffer.from(s, 'utf8').toString('base64')
+const dataMod = (s) => 'data:text/javascript;charset=utf-8;base64,' + b64utf8(s)
+// Document de la frame sandbox : tout est INLINE (le frame est en origine opaque → aucun fetch).
+// CSP stricte posée en EN-TÊTE (URL réelle → pas d'héritage de la CSP de Hublo) : aucun réseau,
+// scripts inline + modules data: uniquement. Le seul canal de l'app = postMessage vers l'hôte.
+app.get('/api/store/frame', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.query?.id || '')
+  const inst = (await readApps(s)).find(x => x.id === id)
+  if (!inst) return reply.code(404).type('text/plain').send('not installed')
+  let code
+  try { code = (await pf(s.sftp.readFile.bind(s.sftp), appCodeFile(s, id, inst.version))).toString('utf8') } catch { return reply.code(404).type('text/plain').send('code not found') }
+  const importmap = JSON.stringify({ imports: { hublo: dataMod(SANDBOX_SDK) } })
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+<style>${SANDBOX_UI}</style>
+<script type="importmap">${importmap}</script>
+</head><body>
+<script type="module">import ${JSON.stringify(dataMod(code))}</script>
+</body></html>`
+  reply
+    .header('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'")
+    .header('X-Frame-Options', 'SAMEORIGIN')
+    .header('X-Content-Type-Options', 'nosniff')
+    .type('text/html; charset=utf-8')
+    .send(html)
 })
 
 // ---------- CLIENT HTTP / API (« Postman ») : requête via curl en SSH ----------

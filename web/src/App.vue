@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch, ref, defineAsyncComponent } from 'vue'
+import { onMounted, watch, ref } from 'vue'
 import { api } from './api.js'
 import { useAuthStore } from './stores/auth.js'
 import { useWindowsStore } from './stores/windows.js'
@@ -20,8 +20,7 @@ import Storage from './components/apps/Storage.vue'
 import DBClient from './components/apps/DBClient.vue'
 import Git from './components/apps/Git.vue'
 import Store from './components/apps/Store.vue'
-// App du magasin chargée à la demande (chunk séparé = « téléchargée » à l'installation)
-const HttpClient = defineAsyncComponent(() => import('./components/apps/HttpClient.vue'))
+import SandboxedApp from './components/apps/SandboxedApp.vue'
 import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
@@ -44,7 +43,7 @@ watch(() => auth.username, (u, old) => {
 // rafraîchit les icônes du bureau quand une fenêtre s'ouvre/se ferme (ex. après le gestionnaire d'hôtes)
 watch(() => windows.wins.length, () => { if (auth.username) loadDrives() })
 
-const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, db: DBClient, git: Git, http: HttpClient, store: Store, props: Props, preview: Preview, about: About }
+const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor: Monitor, sysinfo: SysInfo, trash: Trash, network: Network, logs: Logs, storage: Storage, db: DBClient, git: Git, store: Store, props: Props, preview: Preview, about: About }
 </script>
 
 <template>
@@ -60,7 +59,7 @@ const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor:
       </div>
     </div>
     <div id="windows">
-      <component v-for="w in windows.wins" :key="w.id" :is="COMPS[w.app]" :win-id="w.id" />
+      <component v-for="w in windows.wins" :key="w.id" :is="COMPS[w.app] || SandboxedApp" :win-id="w.id" />
     </div>
     <Dock />
   </div>

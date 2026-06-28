@@ -20,10 +20,11 @@ const builtins = computed(() => [
   { app: 'git', ico: '🔀', title: t('dock.git') },
   { app: 'network', ico: '🌐', title: t('dock.networkDrives') }
 ])
-// apps installées depuis le magasin
-const storeApps = computed(() => apps.installedApps.map(a => ({ app: a.component, ico: a.icon, title: a.name })))
+// apps installées depuis le magasin (clé de fenêtre = id de l'app → montée en SandboxedApp)
+const storeApps = computed(() => apps.installedApps.map(a => ({ app: a.id, ico: a.icon, title: a.name, w: a.window?.w, h: a.window?.h })))
 
 function open (app) { windows.open(app) }
+function openStore (it) { windows.open(it.app, { title: it.title, titleKey: null, w: it.w || 720, h: it.h || 480 }) }
 </script>
 
 <template>
@@ -46,7 +47,7 @@ function open (app) { windows.open(app) }
         class="dock-item"
         :class="{ running: windows.running.has(it.app) }"
         :title="it.title"
-        @click="open(it.app)"
+        @click="openStore(it)"
       >
         <span class="dock-ico">{{ it.ico }}</span>
       </div>

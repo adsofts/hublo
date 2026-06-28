@@ -1,0 +1,98 @@
+/* hublo-ui.css — the Hublo UI pack.
+ *
+ * Import this in your app and use the `h-` classes so your app looks native
+ * inside Hublo (same colors, radii, fonts, light/dark theme). Set the theme on
+ * your root element from the context Hublo gives you:
+ *
+ *   import hublo from './hublo-sdk.js'
+ *   const ctx = await hublo.ready()
+ *   document.documentElement.dataset.theme = ctx.theme   // 'light' | 'dark'
+ *   hublo.on('theme', ({theme}) => document.documentElement.dataset.theme = theme)
+ *
+ * Everything is plain CSS — no framework required.
+ */
+
+:root {
+  --h-accent:#0a84ff;
+  --h-surface:#ffffff;
+  --h-surface-2:#f6f6f8;     /* toolbars, sidebars */
+  --h-surface-3:#ececee;     /* hover */
+  --h-border:#e6e6e6;
+  --h-text:#1d1d1f;
+  --h-muted:#86868b;
+  --h-danger:#cf222e;
+  --h-ok:#1a7f37;
+  --h-warn:#bf8700;
+  --h-radius:8px;
+  --h-radius-sm:6px;
+  --h-gap:8px;
+  --h-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --h-mono:ui-monospace,Menlo,Consolas,monospace;
+}
+[data-theme="dark"] {
+  --h-surface:#252527;
+  --h-surface-2:#2a2a2d;
+  --h-surface-3:#34343a;
+  --h-border:rgba(255,255,255,.10);
+  --h-text:#e5e5e7;
+  --h-muted:#98989d;
+}
+
+/* root layout — fills the Hublo window frame */
+.h-app{
+  position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;
+  font-family:var(--h-font);color:var(--h-text);background:var(--h-surface);
+  font-size:13px;-webkit-font-smoothing:antialiased;overflow:hidden;
+}
+.h-scroll{flex:1;overflow:auto;min-height:0}
+.h-pad{padding:12px}
+
+/* toolbar */
+.h-toolbar{
+  display:flex;align-items:center;gap:6px;padding:7px 10px;
+  background:var(--h-surface-2);border-bottom:1px solid var(--h-border);flex:0 0 auto;
+}
+.h-spacer{flex:1}
+
+/* buttons */
+.h-btn{
+  border:0;border-radius:var(--h-radius-sm);background:var(--h-surface-3);color:var(--h-text);
+  font:inherit;font-size:12px;padding:5px 11px;cursor:pointer;transition:filter .12s,background .12s;
+}
+.h-btn:hover{filter:brightness(.96)}
+.h-btn:disabled{opacity:.45;cursor:default}
+.h-btn--primary{background:var(--h-accent);color:#fff}
+.h-btn--ghost{background:transparent}
+.h-btn--danger{color:var(--h-danger)}
+
+/* inputs */
+.h-input,.h-select,.h-textarea{
+  border:1px solid var(--h-border);border-radius:var(--h-radius-sm);background:var(--h-surface);
+  color:var(--h-text);font:inherit;font-size:13px;padding:6px 9px;outline:none;
+}
+.h-input:focus,.h-select:focus,.h-textarea:focus{border-color:var(--h-accent)}
+.h-textarea{resize:none;font-family:var(--h-mono);line-height:1.5;width:100%}
+.h-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.h-label{font-size:11px;color:var(--h-muted)}
+
+/* lists & rows */
+.h-list{display:flex;flex-direction:column}
+.h-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--h-border);cursor:default}
+.h-row--click{cursor:pointer}
+.h-row--click:hover{background:var(--h-surface-3)}
+.h-row--active{background:color-mix(in srgb,var(--h-accent) 18%,transparent)}
+
+/* cards, tabs, badges */
+.h-card{border:1px solid var(--h-border);border-radius:var(--h-radius);background:var(--h-surface);padding:12px}
+.h-tabs{display:flex;gap:2px;padding:5px 8px;background:var(--h-surface-2);border-bottom:1px solid var(--h-border)}
+.h-tab{border:0;background:transparent;color:var(--h-muted);font:inherit;font-size:12px;padding:3px 10px;border-radius:var(--h-radius-sm);cursor:pointer}
+.h-tab--active{background:var(--h-accent);color:#fff}
+.h-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px;background:var(--h-surface-3);color:var(--h-muted)}
+.h-badge--ok{background:color-mix(in srgb,var(--h-ok) 16%,transparent);color:var(--h-ok)}
+.h-badge--danger{background:color-mix(in srgb,var(--h-danger) 16%,transparent);color:var(--h-danger)}
+
+/* helpers */
+.h-title{font-size:15px;font-weight:600}
+.h-muted{color:var(--h-muted)}
+.h-mono{font-family:var(--h-mono)}
+.h-empty{display:flex;align-items:center;justify-content:center;flex:1;color:var(--h-muted);font-size:13px;padding:30px;text-align:center}

@@ -103,7 +103,18 @@ export default {
     community: 'Community',
     by: 'by {author}',
     capabilities: 'Permissions',
-    empty: 'No apps available yet.'
+    empty: 'No apps available yet.',
+    offline: 'Registry unreachable — showing what could be loaded.',
+    communityHint: 'Not reviewed. Runs sandboxed with the permissions you grant.',
+    consentTitle: 'Install {name}?',
+    consentSub: 'This app runs sandboxed and will be allowed to:',
+    capGeneric: 'access this capability',
+    noPerms: 'This app requests no special permissions.',
+    cancel: 'Cancel',
+    allowInstall: 'Allow & install',
+    pickPrompt: 'Path to the {type} to share with this app:',
+    loadingApp: 'Loading app…',
+    loadFailed: 'Could not load this app.'
   },
   finder: {
     locations: 'Locations',

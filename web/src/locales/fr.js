@@ -103,7 +103,18 @@ export default {
     community: 'Communauté',
     by: 'par {author}',
     capabilities: 'Permissions',
-    empty: 'Aucune application disponible pour l’instant.'
+    empty: 'Aucune application disponible pour l’instant.',
+    offline: 'Registre injoignable — affichage de ce qui a pu être chargé.',
+    communityHint: 'Non relue. Tourne en sandbox avec les permissions que vous accordez.',
+    consentTitle: 'Installer {name} ?',
+    consentSub: 'Cette app tourne en sandbox et sera autorisée à :',
+    capGeneric: 'utiliser cette capacité',
+    noPerms: 'Cette app ne demande aucune permission spéciale.',
+    cancel: 'Annuler',
+    allowInstall: 'Autoriser et installer',
+    pickPrompt: 'Chemin du {type} à partager avec cette app :',
+    loadingApp: 'Chargement de l’app…',
+    loadFailed: 'Impossible de charger cette app.'
   },
   finder: {
     locations: 'Emplacements',
