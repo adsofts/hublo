@@ -475,6 +475,11 @@ body{
 [data-theme="dark"] .props-perms th{color:#aaa}
 [data-theme="dark"] .g-mini{background:#3a3a3e;color:var(--text)}
 [data-theme="dark"] .g-mini:hover{background:#4a4a4e}
+/* breadcrumb dark */
+[data-theme="dark"] .crumb-bar{background:#2a2a2d;border-color:#333}
+[data-theme="dark"] .crumb:hover{background:#3a3a3e}
+[data-theme="dark"] .crumb.last{color:#ccc}
+[data-theme="dark"] .crumb-sep{color:#555}
 
 /* ---------- CLIENT HTTP / API ---------- */
 .http-bar{gap:6px}
