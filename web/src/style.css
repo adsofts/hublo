@@ -580,3 +580,25 @@ body{
 .consent-none{font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .consent-actions{display:flex;justify-content:flex-end;gap:8px}
 [data-theme="dark"] .consent-box{background:#2c2c2e}
+
+/* ---------- LAUNCHPAD ---------- */
+.lp-overlay{position:absolute;inset:0;z-index:8900;background:rgba(18,18,28,.5);
+  backdrop-filter:blur(30px) saturate(150%);display:flex;flex-direction:column;align-items:center;padding-top:64px}
+.lp-head{color:#fff;font-size:15px;font-weight:600;margin-bottom:26px;opacity:.85;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.lp-grid{display:grid;grid-template-columns:repeat(auto-fill,108px);gap:24px 16px;justify-content:center;
+  max-width:780px;width:100%;padding:0 24px;overflow:auto}
+.lp-app{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;
+  padding:8px;border-radius:16px;transition:background .15s;-webkit-user-select:none;user-select:none}
+.lp-app:hover{background:rgba(255,255,255,.12)}
+.lp-app:active{transform:scale(.95)}
+.lp-ico{font-size:46px;line-height:1;filter:drop-shadow(0 3px 7px rgba(0,0,0,.45))}
+.lp-name{color:#fff;font-size:12px;text-align:center;max-width:100px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.lp-pin{position:absolute;top:0;right:6px;border:0;background:rgba(0,0,0,.4);color:#fff;border-radius:50%;
+  width:22px;height:22px;font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s;
+  display:flex;align-items:center;justify-content:center}
+.lp-app:hover .lp-pin{opacity:1}
+.lp-pin.on{opacity:1;background:rgba(10,132,255,.9)}
+.lp-empty{color:#fff;opacity:.85;font-size:14px;margin-top:50px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.lp-hint{position:absolute;bottom:84px;left:0;right:0;text-align:center;color:#fff;opacity:.6;font-size:12px;
+  text-shadow:0 1px 3px rgba(0,0,0,.5)}

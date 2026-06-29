@@ -61,6 +61,7 @@ export default {
     git: 'Git',
     http: 'HTTP Client',
     store: 'App Store',
+    apps: 'Apps',
     networkDrives: 'Network drives',
     about: 'About',
     trash: 'Trash'
@@ -115,6 +116,13 @@ export default {
     pickPrompt: 'Path to the {type} to share with this app:',
     loadingApp: 'Loading app…',
     loadFailed: 'Could not load this app.'
+  },
+  launchpad: {
+    title: 'Apps',
+    pin: 'Add to Dock',
+    unpin: 'Remove from Dock',
+    empty: 'No apps installed yet.',
+    hint: 'Install apps from the App Store 🛍️ · drag an app onto the Dock to pin it'
   },
   finder: {
     locations: 'Locations',

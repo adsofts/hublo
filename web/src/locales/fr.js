@@ -61,6 +61,7 @@ export default {
     git: 'Git',
     http: 'Client HTTP',
     store: 'Magasin d’apps',
+    apps: 'Apps',
     networkDrives: 'Lecteurs réseau',
     about: 'À propos',
     trash: 'Corbeille'
@@ -115,6 +116,13 @@ export default {
     pickPrompt: 'Chemin du {type} à partager avec cette app :',
     loadingApp: 'Chargement de l’app…',
     loadFailed: 'Impossible de charger cette app.'
+  },
+  launchpad: {
+    title: 'Applications',
+    pin: 'Ajouter au Dock',
+    unpin: 'Retirer du Dock',
+    empty: 'Aucune application installée pour l’instant.',
+    hint: 'Installez des apps depuis le Magasin 🛍️ · glissez une app sur le Dock pour l’épingler'
   },
   finder: {
     locations: 'Emplacements',

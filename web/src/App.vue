@@ -20,6 +20,7 @@ import Storage from './components/apps/Storage.vue'
 import Git from './components/apps/Git.vue'
 import Store from './components/apps/Store.vue'
 import SandboxedApp from './components/apps/SandboxedApp.vue'
+import Launchpad from './components/Launchpad.vue'
 import Props from './components/apps/Props.vue'
 import Preview from './components/apps/Preview.vue'
 import About from './components/apps/About.vue'
@@ -32,6 +33,8 @@ const appsStore = useAppsStore()
 const drives = ref([])
 async function loadDrives () { try { drives.value = (await api.hostsList()).hosts } catch { /* ignore */ } }
 function openDrive (d) { windows.open('finder', { gotoHost: d.id }) }
+// lâcher une app du dock sur le bureau = la retirer du dock (≈ macOS)
+function onDesktopDrop (e) { const id = e.dataTransfer.getData('text/hublo-app'); if (id) appsStore.pin(id, false) }
 
 onMounted(() => auth.boot())
 
@@ -49,7 +52,7 @@ const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor:
   <!-- en attendant la vérif /api/me, écran neutre -->
   <Login v-if="auth.ready && !auth.username" />
 
-  <div v-else-if="auth.username" class="desktop">
+  <div v-else-if="auth.username" class="desktop" @dragover.prevent @drop="onDesktopDrop">
     <MenuBar />
     <div class="desk-icons">
       <div v-for="d in drives" :key="d.id" class="desk-icon" :title="d.user + '@' + d.host" @dblclick="openDrive(d)">
@@ -61,6 +64,7 @@ const COMPS = { finder: Finder, textedit: TextEdit, terminal: Terminal, monitor:
       <component v-for="w in windows.wins" :key="w.id" :is="COMPS[w.app] || SandboxedApp" :win-id="w.id" />
     </div>
     <Dock />
+    <Launchpad />
   </div>
 
   <Toast />

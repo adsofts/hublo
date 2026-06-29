@@ -84,6 +84,7 @@ export const api = {
   storeInstall (id, grants) { return post('/api/store/install', { id, grants }) },
   storeUninstall (id) { return post('/api/store/uninstall', { id }) },
   storeCode (id) { return get('/api/store/code?id=' + encodeURIComponent(id)) },
+  storePin (id, pinned) { return post('/api/store/pin', { id, pinned }) },
   async upload (file, destDir, host) {
     const fd = new FormData()
     fd.append('file', file)

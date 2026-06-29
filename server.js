@@ -871,10 +871,24 @@ app.post('/api/store/install', async (req, reply) => {
   const dir = posix.dirname(appCodeFile(s, id, app.version))
   await sshRun(s.conn, `mkdir -p ${shq(dir)}`)
   await pf(s.sftp.writeFile.bind(s.sftp), appCodeFile(s, id, app.version), code)
+  const prev = (await readApps(s)).find(x => x.id === id)
   const list = (await readApps(s)).filter(x => x.id !== id)
-  list.push({ id, version: app.version, grants })
+  // nouvelle app NON épinglée au dock par défaut (≈ macOS : elle vit dans le Launchpad)
+  list.push({ id, version: app.version, grants, pinned: prev ? prev.pinned === true : false })
   await writeApps(s, list)
   audit(req, s.username, 'app-install', id + '@' + app.version + ' [' + grants.join(',') + ']')
+  return { ok: true, installed: list }
+})
+// épingle / retire une app du dock
+app.post('/api/store/pin', async (req, reply) => {
+  const s = requireSession(req, reply); if (!s) return
+  const id = String(req.body?.id || '')
+  const pinned = !!req.body?.pinned
+  const list = await readApps(s)
+  const e = list.find(x => x.id === id)
+  if (!e) return reply.code(404).send({ error: 'non installée' })
+  e.pinned = pinned
+  await writeApps(s, list)
   return { ok: true, installed: list }
 })
 app.post('/api/store/uninstall', async (req, reply) => {
