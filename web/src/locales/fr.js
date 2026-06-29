@@ -122,7 +122,8 @@ export default {
     pin: 'Ajouter au Dock',
     unpin: 'Retirer du Dock',
     empty: 'Aucune application installée pour l’instant.',
-    hint: 'Installez des apps depuis le Magasin 🛍️ · glissez une app sur le Dock pour l’épingler'
+    hint: 'Installez des apps depuis le Magasin 🛍️ · glissez une app sur le Dock pour épingler · glissez une icône du Dock vers la Corbeille 🗑️ pour la retirer',
+    removedFromDock: 'Retiré du Dock'
   },
   finder: {
     locations: 'Emplacements',

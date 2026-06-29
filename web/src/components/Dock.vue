@@ -1,12 +1,15 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useWindowsStore } from '../stores/windows.js'
 import { useAppsStore } from '../stores/apps.js'
+import { useToastStore } from '../stores/toast.js'
 
 const { t } = useI18n()
 const windows = useWindowsStore()
 const apps = useAppsStore()
+const toast = useToastStore()
+const overTrash = ref(false)
 
 // apps livrées par défaut (le client HTTP / la base de données s'installent via le magasin)
 const builtins = computed(() => [
@@ -26,6 +29,14 @@ function open (app) { windows.open(app) }
 function openStore (it) { windows.open(it.app, { title: it.title, titleKey: null, w: it.w || 720, h: it.h || 480 }) }
 function onDragStart (e, id) { e.dataTransfer.setData('text/hublo-app', id); e.dataTransfer.effectAllowed = 'move' }
 function onDrop (e) { const id = e.dataTransfer.getData('text/hublo-app'); if (id) apps.pin(id, true) }
+// lâcher un raccourci du dock sur la poubelle = le retirer du dock (l'app reste installée)
+function onTrashDrop (e) {
+  overTrash.value = false
+  const id = e.dataTransfer.getData('text/hublo-app')
+  if (!id) return
+  apps.pin(id, false)
+  toast.show(t('launchpad.removedFromDock'))
+}
 </script>
 
 <template>
@@ -83,9 +94,13 @@ function onDrop (e) { const id = e.dataTransfer.getData('text/hublo-app'); if (i
     <div class="dock-sep"></div>
     <div
       class="dock-item"
-      :class="{ running: windows.running.has('trash') }"
+      :class="{ running: windows.running.has('trash'), 'trash-target': overTrash }"
       :title="t('dock.trash')"
       @click="open('trash')"
+      @dragenter.prevent="overTrash = true"
+      @dragover.prevent
+      @dragleave="overTrash = false"
+      @drop.stop.prevent="onTrashDrop"
     >
       <span class="dock-ico">🗑️</span>
     </div>

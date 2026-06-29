@@ -122,7 +122,8 @@ export default {
     pin: 'Add to Dock',
     unpin: 'Remove from Dock',
     empty: 'No apps installed yet.',
-    hint: 'Install apps from the App Store 🛍️ · drag an app onto the Dock to pin it'
+    hint: 'Install apps from the App Store 🛍️ · drag an app onto the Dock to pin · drag a Dock icon to the Trash 🗑️ to remove it',
+    removedFromDock: 'Removed from the Dock'
   },
   finder: {
     locations: 'Locations',

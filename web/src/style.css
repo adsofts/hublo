@@ -602,3 +602,6 @@ body{
 .lp-empty{color:#fff;opacity:.85;font-size:14px;margin-top:50px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
 .lp-hint{position:absolute;bottom:84px;left:0;right:0;text-align:center;color:#fff;opacity:.6;font-size:12px;
   text-shadow:0 1px 3px rgba(0,0,0,.5)}
+
+/* poubelle : cible de drop pour retirer un raccourci du dock */
+.dock-item.trash-target{background:rgba(255,59,48,.35);transform:translateY(-6px) scale(1.18)}
