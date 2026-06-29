@@ -10,6 +10,7 @@ import fastifyWebsocket from '@fastify/websocket'
 import fastifyMultipart from '@fastify/multipart'
 import { Client as SSHClient } from 'ssh2'
 import pg from 'pg'
+import mysql from 'mysql2/promise'
 import { randomBytes, createHash } from 'node:crypto'
 import { readFile as fsReadFile } from 'node:fs/promises'
 import { appendFile, mkdirSync, readFileSync } from 'node:fs'
@@ -252,6 +253,26 @@ async function pgRun (cfg, sql) {
   }
   return await dbPool[cfg.id].query(sql)
 }
+// MySQL/MariaDB : connexion par requête, résultat normalisé au format « pg-like »
+async function mysqlRun (cfg, sql) {
+  const conn = await mysql.createConnection({
+    host: cfg.host || '127.0.0.1', port: cfg.port || 3306, database: cfg.database || undefined,
+    user: cfg.user, password: cfg.password, connectTimeout: 8000, multipleStatements: false
+  })
+  try {
+    const [rows, fields] = await conn.query(sql)
+    if (Array.isArray(rows)) {           // SELECT → tableau d'objets
+      return { rows, fields: (fields || []).map(f => ({ name: f.name })), rowCount: rows.length, command: 'SELECT' }
+    }
+    // écriture → ResultSetHeader
+    return { rows: [], fields: [], rowCount: rows?.affectedRows ?? 0, command: 'OK' }
+  } finally { try { await conn.end() } catch { /* */ } }
+}
+// dispatcher par type de SGBD (défaut : postgres pour rétro-compat)
+function dbRun (cfg, sql) { return (cfg.type === 'mysql') ? mysqlRun(cfg, sql) : pgRun(cfg, sql) }
+const dbSysSchemas = (type) => type === 'mysql'
+  ? "'mysql','information_schema','performance_schema','sys'"
+  : "'pg_catalog','information_schema'"
 
 // ===== Magasin d'applications (v1) =====
 // Le catalogue vient du registre externe `hublo-apps`. Une app = un module frontend
@@ -691,24 +712,25 @@ app.post('/api/hosts/test', async (req, reply) => {
   catch (e) { return reply.code(400).send({ error: e.message }) }
 })
 
-// ===== Client base de données (Postgres) =====
+// ===== Client base de données (PostgreSQL / MySQL) =====
 app.get('/api/db/list', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const c = await readDbConns(s)
-  return { conns: c.map(x => ({ id: x.id, label: x.label, host: x.host, port: x.port, database: x.database, user: x.user })) }
+  return { conns: c.map(x => ({ id: x.id, label: x.label, type: x.type || 'postgres', host: x.host, port: x.port, database: x.database, user: x.user })) }
 })
 
 app.post('/api/db/save', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const b = req.body || {}
+  const type = ['postgres', 'mysql'].includes(b.type) ? b.type : 'postgres'
   const host = String(b.host || '127.0.0.1').trim(), database = String(b.database || '').trim(), user = String(b.user || '').trim()
-  const port = Number(b.port) || 5432
+  const port = Number(b.port) || (type === 'mysql' ? 3306 : 5432)
   const label = String(b.label || database).trim()
   if (!database || !user) return reply.code(400).send({ error: 'database et user requis' })
   const conns = await readDbConns(s)
   let entry = (b.id && conns.find(x => x.id === b.id)) || null
   if (!entry) { entry = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }; conns.push(entry) }
-  Object.assign(entry, { label, host, port, database, user })
+  Object.assign(entry, { label, type, host, port, database, user })
   if (b.password != null && b.password !== '') entry.password = String(b.password)
   await writeDbConns(s, conns)
   dropPool(entry.id)   // credentials peut-être modifiés → forcer un nouveau pool
@@ -731,7 +753,7 @@ app.post('/api/db/test', async (req, reply) => {
   const s = requireSession(req, reply); if (!s) return
   const cfg = await dbCfg(s, String(req.body?.id || ''))
   if (!cfg) return reply.code(404).send({ error: 'connexion inconnue' })
-  try { const r = await pgRun(cfg, 'SELECT version()'); return { ok: true, version: r.rows[0].version } }
+  try { const r = await dbRun(cfg, 'SELECT version() AS version'); return { ok: true, version: r.rows[0].version } }
   catch (e) { return reply.code(400).send({ error: e.message }) }
 })
 
@@ -740,7 +762,8 @@ app.get('/api/db/tables', async (req, reply) => {
   const cfg = await dbCfg(s, String(req.query.conn || ''))
   if (!cfg) return reply.code(404).send({ error: 'connexion inconnue' })
   try {
-    const r = await pgRun(cfg, "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name")
+    const baseFilter = cfg.type === 'mysql' ? " AND table_type='BASE TABLE'" : ''
+    const r = await dbRun(cfg, `SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema NOT IN (${dbSysSchemas(cfg.type)})${baseFilter} ORDER BY table_schema, table_name`)
     return { tables: r.rows.map(x => ({ schema: x.table_schema, name: x.table_name })) }
   } catch (e) { return reply.code(400).send({ error: e.message }) }
 })
@@ -752,7 +775,7 @@ app.post('/api/db/query', async (req, reply) => {
   const sql = String(req.body?.sql || '').trim()
   if (!sql) return reply.code(400).send({ error: 'requête vide' })
   try {
-    const res = await pgRun(cfg, sql)
+    const res = await dbRun(cfg, sql)
     const r = Array.isArray(res) ? res[res.length - 1] : res
     const columns = (r.fields || []).map(f => f.name)
     const rows = (r.rows || []).slice(0, 1000).map(row => columns.map(c => {
